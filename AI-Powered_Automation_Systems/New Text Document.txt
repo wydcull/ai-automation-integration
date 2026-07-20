@@ -1,0 +1,28 @@
+Build AI-Powered Automation Systems for Your Business
+Are repetitive tasks slowing down your business?
+I help companies automate business processes using AI, workflow automation, intelligent document processing, and custom backend solutions.
+As a Lead Java Developer with extensive experience in Spring Boot, Microservices, Enterprise Systems, and Cloud Architecture, I develop scalable AI automation platforms that reduce manual effort and improve operational efficiency.
+Services I Offer
+:white_check_mark: AI Email Automation
+:white_check_mark: AI Document Processing
+:white_check_mark: AI Data Extraction Pipelines
+:white_check_mark: AI Report Generation
+:white_check_mark: AI Approval Systems
+:white_check_mark: Workflow Automation
+:white_check_mark: AI Knowledge Management
+:white_check_mark: PDF & Invoice Processing
+:white_check_mark: Intelligent Data Classification
+:white_check_mark: OpenAI / GPT Integration
+:white_check_mark: Enterprise REST APIs
+:white_check_mark: Database Design & Integration
+:white_check_mark: Cloud Deployment (AWS)
+Technology Stack
+
+Java
+Spring Boot
+OpenAI
+LangChain
+Python
+PostgreSQL
+MySQL
+Redis
