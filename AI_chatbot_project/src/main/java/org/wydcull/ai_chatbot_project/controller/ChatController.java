@@ -17,13 +17,12 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")  // Allow all origins for development
+@CrossOrigin(origins = "*")
 @Slf4j
 public class ChatController {
 
     private final ChatService chatService;
 
-    // Health check endpoint
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of(
@@ -32,51 +31,25 @@ public class ChatController {
         ));
     }
 
-    // Send a chat message
+    // Simplified - exceptions handled by GlobalExceptionHandler
     @PostMapping("/send")
     public ResponseEntity<ChatResponse> sendMessage(@Valid @RequestBody ChatRequest request) {
         log.info("Received chat request for session: {}", request.getSessionId());
-
-        try {
-            ChatResponse response = chatService.chat(
-                    request.getSessionId(),
-                    request.getMessage()
-            );
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("Error handling chat request: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        ChatResponse response = chatService.chat(request.getSessionId(), request.getMessage());
+        return ResponseEntity.ok(response);
     }
 
-    // Get chat history for a session
     @GetMapping("/history/{sessionId}")
     public ResponseEntity<List<ChatMessage>> getHistory(@PathVariable String sessionId) {
         log.info("Fetching history for session: {}", sessionId);
-
-        try {
-            List<ChatMessage> history = chatService.getHistory(sessionId);
-            return ResponseEntity.ok(history);
-
-        } catch (Exception e) {
-            log.error("Error fetching history: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        List<ChatMessage> history = chatService.getHistory(sessionId);
+        return ResponseEntity.ok(history);
     }
 
-    // Clear chat history for a session
     @DeleteMapping("/history/{sessionId}")
     public ResponseEntity<Map<String, String>> clearHistory(@PathVariable String sessionId) {
         log.info("Clearing history for session: {}", sessionId);
-
-        try {
-            chatService.clearHistory(sessionId);
-            return ResponseEntity.ok(Map.of("message", "Chat history cleared successfully"));
-
-        } catch (Exception e) {
-            log.error("Error clearing history: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        chatService.clearHistory(sessionId);
+        return ResponseEntity.ok(Map.of("message", "Chat history cleared successfully"));
     }
 }
