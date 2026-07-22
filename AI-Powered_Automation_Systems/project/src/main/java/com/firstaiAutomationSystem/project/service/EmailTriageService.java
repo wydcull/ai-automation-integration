@@ -118,7 +118,6 @@ public class EmailTriageService {
         );
     }
 
-    // Add this method after your existing process() method
 
     public EmailTriageResponse processFromGmail(EmailTriageRequest request, MultipartFile document,
                                                 String gmailMessageId, String gmailThreadId) {
