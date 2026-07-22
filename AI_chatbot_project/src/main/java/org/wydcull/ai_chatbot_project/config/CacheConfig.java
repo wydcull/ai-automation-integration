@@ -15,10 +15,15 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager("geminiResponses");
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();  //  No cache names = create dynamically
+
         cacheManager.setCaffeine(Caffeine.newBuilder()
-                .expireAfterWrite(10, TimeUnit.MINUTES)  // Cache for 10 minutes
-                .maximumSize(100));  // Max 100 cached responses
+                .expireAfterWrite(10, TimeUnit.MINUTES)
+                .maximumSize(100));
+
+        // Allow dynamic cache creation
+        cacheManager.setAllowNullValues(false);  // Optional: prevent caching null values
+
         return cacheManager;
     }
 }

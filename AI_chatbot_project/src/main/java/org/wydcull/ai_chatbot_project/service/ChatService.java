@@ -24,8 +24,9 @@ import java.util.regex.Pattern;
 public class ChatService {
 
     private final GroqService groqService;
-    private final ChatHistoryRepository repository;
+    private final ChatHistoryService chatHistoryService;
     private final EcommerceService ecommerceService;
+    private final ChatHistoryRepository repository;
 
     private static final String SYSTEM_PROMPT = """
     You are a helpful and friendly customer support assistant for an e-commerce store called "ShopEasy".
@@ -55,7 +56,6 @@ public class ChatService {
 
     public ChatResponse chat(String sessionId, String userMessage) {
         log.info("Processing chat for session: {}, message: {}", sessionId, userMessage);
-
         // Validate inputs
         if (sessionId == null || sessionId.trim().isEmpty()) {
             throw new InvalidRequestException("sessionId", "cannot be empty");
@@ -64,41 +64,37 @@ public class ChatService {
         if (userMessage == null || userMessage.trim().isEmpty()) {
             throw new InvalidRequestException("message", "cannot be empty");
         }
-
-        if (userMessage.length() > 1000) {
-            throw new InvalidRequestException("message", "exceeds maximum length of 1000 characters");
-        }
-
         try {
-            // 1. Save user message
-            ChatMessage userChatMessage = new ChatMessage(sessionId, ChatMessage.Role.USER, userMessage);
-            repository.save(userChatMessage);
-
-            // 2. Load conversation history
-            List<ChatMessage> history = repository.findTop5BySessionIdOrderByCreatedAtAsc(sessionId);
+            // 1. Save user message using ChatHistoryService
+            chatHistoryService.saveMessage(sessionId, ChatMessage.Role.USER, userMessage);
+            // 2. Load recent conversation history (last 10 for context)
+            List<ChatMessage> history = chatHistoryService.getRecentMessagesForContext(sessionId, 10);
             log.debug("Loaded {} historical messages", history.size());
+            // 3. Check if we need to include conversation summary
+            ChatHistoryService.SessionStatistics stats = chatHistoryService.getSessionStatistics(sessionId);
+            String conversationContext = "";
 
-            // 3. Extract context from database
+            if (stats.getConversationSummary() != null && stats.getMessageCount() > 20) {
+                conversationContext = "\n\nPrevious conversation summary: " + stats.getConversationSummary();
+            }
+            // 4. Extract context from database
             String contextData = extractRelevantData(userMessage);
-
-            // 4. Build messages with context
-            List<GroqRequest.Message> messages = buildMessagesWithContext(history, contextData);
-
-            // 5. Call Groq API
+            // 5. Build messages with context
+            List<GroqRequest.Message> messages = buildMessagesWithContext(
+                    history,
+                    contextData,
+                    conversationContext
+            );
+            // 6. Call Groq API
             String aiReply = groqService.generateContentWithMessages(messages);
 
             if (aiReply == null || aiReply.trim().isEmpty()) {
                 throw new AIServiceException("AI service returned empty response");
             }
-
-            // 6. Save AI response
-            ChatMessage assistantMessage = new ChatMessage(sessionId, ChatMessage.Role.ASSISTANT, aiReply);
-            repository.save(assistantMessage);
-
+            // 7. Save AI response using ChatHistoryService
+            chatHistoryService.saveMessage(sessionId, ChatMessage.Role.ASSISTANT, aiReply);
             return new ChatResponse(sessionId, aiReply, LocalDateTime.now());
-
         } catch (ChatbotException e) {
-            // Re-throw custom exceptions
             throw e;
         } catch (Exception e) {
             log.error("Error processing chat: {}", e.getMessage(), e);
@@ -232,26 +228,23 @@ public class ChatService {
         return info.toString();
     }
 
-    private List<GroqRequest.Message> buildMessagesWithContext(List<ChatMessage> history, String contextData) {
+    private List<GroqRequest.Message> buildMessagesWithContext(
+            List<ChatMessage> history,
+            String contextData,
+            String conversationContext) {
+
         List<GroqRequest.Message> messages = new ArrayList<>();
-
-        // Add system prompt with explicit database context
-        String enhancedSystemPrompt = SYSTEM_PROMPT;
-
+        String enhancedSystemPrompt = SYSTEM_PROMPT + conversationContext;
         if (!contextData.isEmpty()) {
             enhancedSystemPrompt += "\n\nRelevant data from database:" + contextData;
         } else {
-            enhancedSystemPrompt += "\n\nRelevant data from database: No specific product or order data found for this query. Only provide general information about policies or suggest checking our available products.";
+            enhancedSystemPrompt += "\n\nRelevant data from database: No specific product or order data found for this query.";
         }
-
         messages.add(new GroqRequest.Message("system", enhancedSystemPrompt));
-
-        // Add conversation history
         for (ChatMessage msg : history) {
             String role = msg.getRole() == ChatMessage.Role.USER ? "user" : "assistant";
             messages.add(new GroqRequest.Message(role, msg.getContent()));
         }
-
         return messages;
     }
 
