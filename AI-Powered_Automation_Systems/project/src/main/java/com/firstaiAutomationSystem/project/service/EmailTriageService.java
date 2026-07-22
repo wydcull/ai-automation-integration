@@ -2,6 +2,7 @@ package com.firstaiAutomationSystem.project.service;
 
 import com.firstaiAutomationSystem.project.model.*;
 import com.firstaiAutomationSystem.project.repository.EmailTriageRepository;
+import com.firstaiAutomationSystem.project.util.InputSanitizer;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -12,16 +13,18 @@ import java.util.Map;
 @Service
 public class EmailTriageService {
 
+    private final InputSanitizer sanitizer;
     private final OpenAiTriageService openAiTriageService;
     private final EmailTriageRepository repository;
     private final DocumentExtractionService documentExtractionService;
     private final AiDocumentExtractionService aiDocumentExtractionService;
 
     // Update constructor to inject new services:
-    public EmailTriageService(OpenAiTriageService openAiTriageService,
+    public EmailTriageService(InputSanitizer sanitizer,OpenAiTriageService openAiTriageService,
                               EmailTriageRepository repository,
                               DocumentExtractionService documentExtractionService,
                               AiDocumentExtractionService aiDocumentExtractionService) {
+        this.sanitizer=sanitizer;
         this.openAiTriageService = openAiTriageService;
         this.repository = repository;
         this.documentExtractionService = documentExtractionService;
@@ -29,6 +32,10 @@ public class EmailTriageService {
     }
 
     public EmailTriageResponse process(EmailTriageRequest request, MultipartFile document) {
+
+        String sanitizedEmail = sanitizer.sanitizeEmail(request.senderEmail());
+        String sanitizedSubject = sanitizer.sanitizeHtml(request.subject());
+        String sanitizedBody = sanitizer.sanitizeForDatabase(request.body());
         // 1. Extract document data FIRST (if provided)
         String documentFileName = null;
         Map<String, Object> documentData = null;
@@ -58,16 +65,16 @@ public class EmailTriageService {
 
         // 2. Triage email text WITH candidate name context
         AiTriageResult aiResult = openAiTriageService.triage(
-                request.subject(),
-                request.body(),
+                sanitizedSubject,
+                sanitizedBody,
                 candidateName  // Pass the name
         );
 
         // Rest of the method stays the same...
         EmailTriageRecord record = new EmailTriageRecord();
-        record.setSenderEmail(request.senderEmail());
-        record.setSubject(request.subject());
-        record.setBody(request.body());
+        record.setSenderEmail(sanitizedEmail );
+        record.setSubject(sanitizedSubject );
+        record.setBody(sanitizedBody );
         record.setCategory(aiResult.category());
         record.setPriority(aiResult.priority());
         record.setSummary(aiResult.summary());
