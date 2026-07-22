@@ -112,6 +112,10 @@
             <artifactId>google-http-client-jackson2</artifactId>
             <version>1.44.1</version>
         </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
     </dependencies>
 
 	<build>
