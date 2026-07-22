@@ -4,6 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.wydcull.ai_chatbot_project.dto.groq.GroqRequest;
+import org.wydcull.ai_chatbot_project.exception.AIServiceException;
+import org.wydcull.ai_chatbot_project.exception.ChatbotException;
+import org.wydcull.ai_chatbot_project.exception.InvalidRequestException;
 import org.wydcull.ai_chatbot_project.model.*;
 import org.wydcull.ai_chatbot_project.repository.ChatHistoryRepository;
 
@@ -53,24 +56,40 @@ public class ChatService {
     public ChatResponse chat(String sessionId, String userMessage) {
         log.info("Processing chat for session: {}, message: {}", sessionId, userMessage);
 
+        // Validate inputs
+        if (sessionId == null || sessionId.trim().isEmpty()) {
+            throw new InvalidRequestException("sessionId", "cannot be empty");
+        }
+
+        if (userMessage == null || userMessage.trim().isEmpty()) {
+            throw new InvalidRequestException("message", "cannot be empty");
+        }
+
+        if (userMessage.length() > 1000) {
+            throw new InvalidRequestException("message", "exceeds maximum length of 1000 characters");
+        }
+
         try {
             // 1. Save user message
             ChatMessage userChatMessage = new ChatMessage(sessionId, ChatMessage.Role.USER, userMessage);
             repository.save(userChatMessage);
 
-            // 2. Load conversation history (last 10 messages)
-            // Load conversation history (last 5 messages to avoid repetition issues)
-List<ChatMessage> history = repository.findTop5BySessionIdOrderByCreatedAtAsc(sessionId);
+            // 2. Load conversation history
+            List<ChatMessage> history = repository.findTop5BySessionIdOrderByCreatedAtAsc(sessionId);
             log.debug("Loaded {} historical messages", history.size());
 
-            // 3. Extract context from database based on user query
+            // 3. Extract context from database
             String contextData = extractRelevantData(userMessage);
 
-            // 4. Build messages with context (using Groq format)
+            // 4. Build messages with context
             List<GroqRequest.Message> messages = buildMessagesWithContext(history, contextData);
 
             // 5. Call Groq API
             String aiReply = groqService.generateContentWithMessages(messages);
+
+            if (aiReply == null || aiReply.trim().isEmpty()) {
+                throw new AIServiceException("AI service returned empty response");
+            }
 
             // 6. Save AI response
             ChatMessage assistantMessage = new ChatMessage(sessionId, ChatMessage.Role.ASSISTANT, aiReply);
@@ -78,9 +97,12 @@ List<ChatMessage> history = repository.findTop5BySessionIdOrderByCreatedAtAsc(se
 
             return new ChatResponse(sessionId, aiReply, LocalDateTime.now());
 
+        } catch (ChatbotException e) {
+            // Re-throw custom exceptions
+            throw e;
         } catch (Exception e) {
             log.error("Error processing chat: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to process chat message", e);
+            throw new AIServiceException("Failed to process chat message", e);
         }
     }
 

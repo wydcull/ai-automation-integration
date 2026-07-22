@@ -9,6 +9,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.wydcull.ai_chatbot_project.dto.groq.GroqRequest;
 import org.wydcull.ai_chatbot_project.dto.groq.GroqResponse;
+import org.wydcull.ai_chatbot_project.exception.AIServiceException;
+import org.wydcull.ai_chatbot_project.exception.RateLimitExceededException;
 
 import java.util.List;
 
@@ -141,10 +143,12 @@ public class GroqService {
     private String handleRateLimitError(List<GroqRequest.Message> messages, int attemptNumber, Exception originalException) {
         if (attemptNumber >= MAX_RETRY_ATTEMPTS - 1) {
             log.error("Max retry attempts reached. Giving up.");
-            throw new RuntimeException("Rate limit exceeded after " + MAX_RETRY_ATTEMPTS + " attempts", originalException);
+            throw new RateLimitExceededException(
+                    "AI service rate limit exceeded. Please try again in a moment."
+            );
         }
 
-        // Exponential backoff: 1s, 2s, 4s, 8s...
+        // Exponential backoff
         long delayMs = INITIAL_RETRY_DELAY_MS * (long) Math.pow(2, attemptNumber);
         log.info("Retrying in {} ms...", delayMs);
 
@@ -152,7 +156,7 @@ public class GroqService {
             Thread.sleep(delayMs);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Retry interrupted", ie);
+            throw new AIServiceException("Retry interrupted", ie);
         }
 
         return executeWithRetryMessages(messages, attemptNumber + 1);
