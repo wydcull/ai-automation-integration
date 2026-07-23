@@ -20,7 +20,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @Slf4j
 public class ChatController {
 
