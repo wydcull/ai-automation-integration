@@ -1,9 +1,13 @@
 package com.firstaiAutomationSystem.project.service;
 
+import com.firstaiAutomationSystem.project.exception.AiServiceException;
+import com.firstaiAutomationSystem.project.exception.DocumentProcessingException;
 import com.firstaiAutomationSystem.project.model.*;
 import com.firstaiAutomationSystem.project.repository.EmailTriageRepository;
 import com.firstaiAutomationSystem.project.util.InputSanitizer;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
@@ -30,7 +34,11 @@ public class EmailTriageService {
         this.documentExtractionService = documentExtractionService;
         this.aiDocumentExtractionService = aiDocumentExtractionService;
     }
-
+    @Transactional(rollbackFor = {
+            AiServiceException.class,
+            DocumentProcessingException.class,
+            Exception.class
+    })
     public EmailTriageResponse process(EmailTriageRequest request, MultipartFile document) {
 
         String sanitizedEmail = sanitizer.sanitizeEmail(request.senderEmail());
@@ -88,6 +96,7 @@ public class EmailTriageService {
         return toResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public List<EmailTriageResponse> findAll() {
         return repository.findAll()
                 .stream()
@@ -95,6 +104,7 @@ public class EmailTriageService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public EmailTriageResponse findById(Long id) {
         EmailTriageRecord record = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Triage record not found: " + id));
@@ -118,7 +128,7 @@ public class EmailTriageService {
         );
     }
 
-
+    @Transactional
     public EmailTriageResponse processFromGmail(EmailTriageRequest request, MultipartFile document,
                                                 String gmailMessageId, String gmailThreadId) {
         // 1. Extract document data FIRST (if provided)
@@ -177,6 +187,7 @@ public class EmailTriageService {
         return toResponse(saved);
     }
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void markReplySent(Long id) {
         EmailTriageRecord record = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Triage record not found: " + id));

@@ -110,10 +110,10 @@ public class GmailService {
                 // Update database to mark reply as sent
                 emailTriageService.markReplySent(response.id());
 
-                System.out.println("✅ Auto-reply sent to: " + senderEmail +
+                System.out.println("Auto-reply sent to: " + senderEmail +
                         " (Category: " + response.category() + ")");
             } catch (Exception e) {
-                System.err.println("❌ Failed to send auto-reply: " + e.getMessage());
+                System.err.println("Failed to send auto-reply: " + e.getMessage());
             }
         }
 
