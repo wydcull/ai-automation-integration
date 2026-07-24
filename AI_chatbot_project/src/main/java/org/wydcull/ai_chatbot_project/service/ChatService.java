@@ -136,52 +136,74 @@ public class ChatService {
                 log.warn("Tracking number not found in database: {}", trackingNumber);
             }
         }
-        // Check for product queries
-        else if (lowerMessage.contains("product") || lowerMessage.contains("item") ||
-                lowerMessage.contains("laptop") || lowerMessage.contains("phone") ||
-                lowerMessage.contains("headphones") || lowerMessage.contains("watch") ||
-                lowerMessage.contains("tv") || lowerMessage.contains("sony") ||
-                lowerMessage.contains("samsung") || lowerMessage.contains("apple")) {
-
+        // Check for product queries - NEW IMPROVED VERSION
+        else if (isProductQuery(lowerMessage)) {
             log.info("Detected product query: {}", userMessage);
 
-            // Extract product name from message
-            String[] keywords = {"laptop", "phone", "headphones", "watch", "tv", "mouse", "hub", "wireless", "ultra", "gaming", "smart"};
-            boolean productFound = false;
+            // NEW: Use smart search instead of hardcoded keywords
+            List<Product> products = ecommerceService.searchProducts(userMessage);
 
-            for (String keyword : keywords) {
-                if (lowerMessage.contains(keyword)) {
-                    Optional<Product> product = ecommerceService.findProductByName(keyword);
-                    if (product.isPresent()) {
-                        context.append(formatProductInfo(product.get()));
-                        productFound = true;
-                        break;
-                    }
+            if (!products.isEmpty()) {
+                context.append("\n\nFound ").append(products.size())
+                        .append(" matching product(s):\n\n");
+
+                // Show top 3 most relevant products
+                products.stream()
+                        .limit(3)
+                        .forEach(product -> context.append(formatProductInfo(product)));
+
+                if (products.size() > 3) {
+                    context.append("\n... and ").append(products.size() - 3)
+                            .append(" more products available.\n");
                 }
-            }
-
-            // If no specific product found by keyword search
-            if (!productFound) {
-                // Try to list all products that might be relevant
-                List<Product> allProducts = ecommerceService.getAllProducts();
+            } else {
+                // Fallback: show available products if no match found
+                List<Product> allProducts = ecommerceService.getInStockProducts();
 
                 if (!allProducts.isEmpty()) {
-                    context.append("\n\nThe specific product mentioned was NOT FOUND in our database.\n");
-                    context.append("Here are the products we currently have available:\n");
-                    allProducts.forEach(p ->
-                            context.append(String.format("- %s: $%.2f (%s) - %s\n",
-                                    p.getName(), p.getPrice(),
-                                    p.getInStock() ? "In Stock" : "Out of Stock",
-                                    p.getCategory()))
-                    );
+                    context.append("\n\nI couldn't find products matching '")
+                            .append(userMessage)
+                            .append("', but here are our available products:\n\n");
+
+                    allProducts.stream()
+                            .limit(5)
+                            .forEach(p -> context.append(String.format(
+                                    "- %s ($%.2f) - %s\n",
+                                    p.getName(),
+                                    p.getPrice(),
+                                    p.getCategory()
+                            )));
                 } else {
-                    context.append("\n\nProduct Status: NOT FOUND - The requested product is not available in our catalog.\n");
+                    context.append("\n\nProduct Status: NOT FOUND - No products match your query.\n");
                 }
             }
         }
 
         log.debug("Extracted context data: {}", context.toString());
         return context.toString();
+    }
+
+    /**
+     * Check if message is a product query
+     */
+    private boolean isProductQuery(String lowerMessage) {
+        // Check for common product-related words
+        String[] productIndicators = {
+                "product", "item", "buy", "purchase", "looking for",
+                "show me", "what", "do you have", "available", "price",
+                "cost", "how much", "sell", "stock", "laptop", "phone",
+                "headphones", "watch", "tv", "sony", "samsung", "apple"
+        };
+
+        for (String indicator : productIndicators) {
+            if (lowerMessage.contains(indicator)) {
+                return true;
+            }
+        }
+
+        // Check if message contains product keywords
+        List<String> keywords = ecommerceService.extractProductKeywords(lowerMessage);
+        return !keywords.isEmpty();
     }
 
     private String formatOrderInfo(Order order) {

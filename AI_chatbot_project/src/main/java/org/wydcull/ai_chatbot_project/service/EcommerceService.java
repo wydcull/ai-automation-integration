@@ -18,6 +18,7 @@ public class EcommerceService {
 
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
+    private final ProductSearchService productSearchService;
 
     public Optional<Product> findProductByName(String name) {
         List<Product> products = productRepository.findByNameContainingIgnoreCase(name);
@@ -42,5 +43,14 @@ public class EcommerceService {
 
     public List<Product> getInStockProducts() {
         return productRepository.findByInStockTrue();
+    }
+
+    // NEW methods
+    public List<Product> searchProducts(String query) {
+        return productSearchService.smartSearch(query);
+    }
+
+    public List<String> extractProductKeywords(String message) {
+        return productSearchService.extractProductKeywords(message);
     }
 }
