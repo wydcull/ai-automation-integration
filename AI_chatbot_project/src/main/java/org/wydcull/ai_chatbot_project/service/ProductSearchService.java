@@ -28,35 +28,88 @@ public class ProductSearchService {
      * Smart search with synonyms and ranking
      */
     public List<Product> smartSearch(String query) {
+        log.info("🔍 Starting smart product search for query: '{}'", query);
+        long startTime = System.currentTimeMillis();
+
         if (query == null || query.trim().isEmpty()) {
+            log.warn("Empty search query received");
             return Collections.emptyList();
         }
 
-        Set<Product> results = new LinkedHashSet<>();
         String searchQuery = query.toLowerCase().trim();
+        Set<Product> results = new LinkedHashSet<>();
 
-        // Direct search
-        results.addAll(productRepository.searchProducts(searchQuery));
+        // Strategy 1: Direct search
+        log.debug("Strategy 1: Direct search for '{}'", searchQuery);
+        List<Product> exactMatches = productRepository.searchProducts(searchQuery);
+        results.addAll(exactMatches);
+        log.debug("  → Found {} exact matches", exactMatches.size());
 
-        // Synonym search
-        SYNONYMS.forEach((key, synonyms) -> {
-            if (searchQuery.contains(key)) {
-                results.addAll(productRepository.searchProducts(key));
-            }
-            synonyms.forEach(syn -> {
-                if (searchQuery.contains(syn)) {
-                    results.addAll(productRepository.searchProducts(key));
+        // Strategy 2: Synonym search
+        log.debug("Strategy 2: Synonym search");
+        List<Product> synonymMatches = searchWithSynonyms(searchQuery);
+        int synonymCount = synonymMatches.size();
+        results.addAll(synonymMatches);
+        log.debug("  → Found {} synonym matches", synonymCount);
+
+        // Strategy 3: Word-by-word search
+        String[] words = searchQuery.split("\\s+");
+        if (words.length > 1) {
+            log.debug("Strategy 3: Searching individual words: {}", String.join(", ", words));
+            for (String word : words) {
+                if (word.length() > 2) {
+                    List<Product> wordMatches = productRepository.searchProducts(word);
+                    results.addAll(wordMatches);
                 }
-            });
-        });
+            }
+        }
+
+        long duration = System.currentTimeMillis() - startTime;
+        log.info("✅ Search completed in {}ms: Found {} unique products for query '{}'",
+                duration, results.size(), query);
 
         // Rank and return top 5
-        return rankResults(new ArrayList<>(results), searchQuery)
+        List<Product> rankedResults = rankResults(new ArrayList<>(results), searchQuery)
                 .stream()
                 .limit(5)
                 .collect(Collectors.toList());
+
+        if (!rankedResults.isEmpty()) {
+            log.info("Top result: '{}' (score calculated)", rankedResults.get(0).getName());
+        }
+
+        return rankedResults;
     }
 
+    /**
+     * Search using synonyms
+     */
+    private List<Product> searchWithSynonyms(String query) {
+        Set<Product> results = new HashSet<>();
+
+        for (Map.Entry<String, List<String>> entry : SYNONYMS.entrySet()) {
+            String mainTerm = entry.getKey();
+            List<String> synonyms = entry.getValue();
+
+            // Check if query contains main term or any synonym
+            if (query.contains(mainTerm)) {
+                results.addAll(productRepository.searchProducts(mainTerm));
+            }
+
+            for (String synonym : synonyms) {
+                if (query.contains(synonym)) {
+                    results.addAll(productRepository.searchProducts(mainTerm));
+                    results.addAll(productRepository.searchProducts(synonym));
+                }
+            }
+        }
+
+        return new ArrayList<>(results);
+    }
+
+    /**
+     * Rank results by relevance
+     */
     private List<Product> rankResults(List<Product> products, String query) {
         return products.stream()
                 .sorted((p1, p2) -> {
@@ -67,6 +120,9 @@ public class ProductSearchService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Calculate relevance score for ranking
+     */
     private int calculateScore(Product p, String query) {
         int score = 0;
         String name = p.getName().toLowerCase();
@@ -79,6 +135,9 @@ public class ProductSearchService {
         return score;
     }
 
+    /**
+     * Extract product keywords from message
+     */
     public List<String> extractProductKeywords(String message) {
         List<String> keywords = new ArrayList<>();
         String lower = message.toLowerCase();

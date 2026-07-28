@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.wydcull.ai_chatbot_project.dto.PaginatedResponse;
@@ -36,9 +37,24 @@ public class ChatController {
 
     @PostMapping("/send")
     public ResponseEntity<ChatResponse> sendMessage(@Valid @RequestBody ChatRequest request) {
-        log.info("Received chat request for session: {}", request.getSessionId());
-        ChatResponse response = chatService.chat(request.getSessionId(), request.getMessage());
-        return ResponseEntity.ok(response);
+        log.info("📩 Received chat message - Session: {}, MessageLength: {} chars",
+                request.getSessionId(),
+                request.getMessage().length());
+
+        MDC.put("sessionId", request.getSessionId());
+
+        try {
+            ChatResponse response = chatService.chat(request.getSessionId(), request.getMessage());
+
+            log.info("✅ Chat response sent - Session: {}, ResponseLength: {} chars",
+                    request.getSessionId(),
+                    response.getReply().length());
+
+            return ResponseEntity.ok(response);
+
+        } finally {
+            MDC.remove("sessionId");
+        }
     }
 
     // NEW: Paginated history endpoint
@@ -48,12 +64,16 @@ public class ChatController {
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
 
-        log.info("Fetching paginated history for session: {}, page: {}, size: {}",
-                sessionId, page, size);
+        log.info("📖 Fetching history - Session: {}, Page: {}, Size: {}", sessionId, page, size);
 
         PaginatedResponse<ChatMessage> history = chatHistoryService.getHistory(sessionId, page, size);
+
+        log.info("✅ History retrieved - Session: {}, TotalMessages: {}, Pages: {}",
+                sessionId, history.getTotalElements(), history.getTotalPages());
+
         return ResponseEntity.ok(history);
     }
+
 
     // NEW: Get recent messages (for UI quick view)
     @GetMapping("/history/{sessionId}/recent")

@@ -2,6 +2,7 @@ package org.wydcull.ai_chatbot_project.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.wydcull.ai_chatbot_project.dto.groq.GroqRequest;
 import org.wydcull.ai_chatbot_project.exception.AIServiceException;
@@ -55,50 +56,102 @@ public class ChatService {
     """;
 
     public ChatResponse chat(String sessionId, String userMessage) {
-        log.info("Processing chat for session: {}, message: {}", sessionId, userMessage);
-        // Validate inputs
-        if (sessionId == null || sessionId.trim().isEmpty()) {
-            throw new InvalidRequestException("sessionId", "cannot be empty");
-        }
+        long startTime = System.currentTimeMillis();
 
-        if (userMessage == null || userMessage.trim().isEmpty()) {
-            throw new InvalidRequestException("message", "cannot be empty");
-        }
+        // Add session ID to MDC for all logs in this thread
+        MDC.put("sessionId", sessionId);
+
+        log.info("=== CHAT REQUEST START === Session: {}, MessageLength: {}",
+                sessionId, userMessage.length());
+
         try {
-            // 1. Save user message using ChatHistoryService
-            chatHistoryService.saveMessage(sessionId, ChatMessage.Role.USER, userMessage);
-            // 2. Load recent conversation history (last 10 for context)
-            List<ChatMessage> history = chatHistoryService.getRecentMessagesForContext(sessionId, 10);
-            log.debug("Loaded {} historical messages", history.size());
-            // 3. Check if we need to include conversation summary
-            ChatHistoryService.SessionStatistics stats = chatHistoryService.getSessionStatistics(sessionId);
-            String conversationContext = "";
+            // Validate inputs
+            if (sessionId == null || sessionId.trim().isEmpty()) {
+                log.error("Invalid session ID provided: '{}'", sessionId);
+                throw new InvalidRequestException("sessionId", "cannot be empty");
+            }
 
+            if (userMessage == null || userMessage.trim().isEmpty()) {
+                log.error("Invalid message provided for session: {}", sessionId);
+                throw new InvalidRequestException("message", "cannot be empty");
+            }
+
+            log.debug("User message: '{}'", userMessage);
+
+            // 1. Save user message
+            log.debug("Step 1: Saving user message to database");
+            chatHistoryService.saveMessage(sessionId, ChatMessage.Role.USER, userMessage);
+
+            // 2. Load conversation history
+            log.debug("Step 2: Loading conversation history");
+            List<ChatMessage> history = chatHistoryService.getRecentMessagesForContext(sessionId, 10);
+            log.info("Loaded {} historical messages for context", history.size());
+
+            // 3. Get session statistics
+            log.debug("Step 3: Fetching session statistics");
+            ChatHistoryService.SessionStatistics stats = chatHistoryService.getSessionStatistics(sessionId);
+            log.info("Session stats - Total messages: {}, Created: {}",
+                    stats.getMessageCount(), stats.getCreatedAt());
+
+            String conversationContext = "";
             if (stats.getConversationSummary() != null && stats.getMessageCount() > 20) {
                 conversationContext = "\n\nPrevious conversation summary: " + stats.getConversationSummary();
+                log.debug("Using conversation summary for long chat history");
             }
+
             // 4. Extract context from database
+            log.debug("Step 4: Extracting relevant data from database");
+            long extractStart = System.currentTimeMillis();
             String contextData = extractRelevantData(userMessage);
+            long extractDuration = System.currentTimeMillis() - extractStart;
+            log.info("Context extraction completed in {}ms, found {} characters of data",
+                    extractDuration, contextData.length());
+
             // 5. Build messages with context
+            log.debug("Step 5: Building AI prompt with context");
             List<GroqRequest.Message> messages = buildMessagesWithContext(
                     history,
                     contextData,
                     conversationContext
             );
+            log.info("Built prompt with {} messages", messages.size());
+
             // 6. Call Groq API
+            log.info("Step 6: Calling Groq API...");
+            long apiStart = System.currentTimeMillis();
             String aiReply = groqService.generateContentWithMessages(messages);
+            long apiDuration = System.currentTimeMillis() - apiStart;
 
             if (aiReply == null || aiReply.trim().isEmpty()) {
+                log.error("AI service returned empty response for session: {}", sessionId);
                 throw new AIServiceException("AI service returned empty response");
             }
-            // 7. Save AI response using ChatHistoryService
+
+            log.info("Groq API call completed in {}ms, response length: {} characters",
+                    apiDuration, aiReply.length());
+            log.debug("AI response preview: '{}'",
+                    aiReply.length() > 100 ? aiReply.substring(0, 100) + "..." : aiReply);
+
+            // 7. Save AI response
+            log.debug("Step 7: Saving AI response to database");
             chatHistoryService.saveMessage(sessionId, ChatMessage.Role.ASSISTANT, aiReply);
+
+            long totalDuration = System.currentTimeMillis() - startTime;
+            log.info("=== CHAT REQUEST END === Session: {}, Total Duration: {}ms, " +
+                            "Context: {}ms, API: {}ms",
+                    sessionId, totalDuration, extractDuration, apiDuration);
+
             return new ChatResponse(sessionId, aiReply, LocalDateTime.now());
+
         } catch (ChatbotException e) {
+            log.warn("Chat processing failed with known exception: {} - {}",
+                    e.getErrorCode(), e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("Error processing chat: {}", e.getMessage(), e);
+            log.error("Unexpected error processing chat for session: {}", sessionId, e);
             throw new AIServiceException("Failed to process chat message", e);
+        } finally {
+            MDC.remove("sessionId");
         }
     }
 
