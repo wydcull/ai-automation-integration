@@ -53,6 +53,12 @@ public class EmailTriageRecord {
     private Boolean replySent = false;            // Was reply sent?
     private LocalDateTime replyAt;        // When reply was sent
     private String replyMessageId;      // Gmail ID of sent reply
+    private Boolean approved;
+    private String approvedBy;
+    private LocalDateTime approvedAt;
+    private Boolean rejected;
+    private String rejectedBy;
+    private String rejectionReason;
 
     public String getGmailMessageId() {
         return gmailMessageId;
@@ -193,5 +199,53 @@ public class EmailTriageRecord {
     }
     public void setDocumentExtractedData(Map<String, Object> documentExtractedData) {
         this.documentExtractedData = documentExtractedData;
+    }
+
+    public Boolean getApproved() {
+        return approved;
+    }
+
+    public void setApproved(Boolean approved) {
+        this.approved = approved;
+    }
+
+    public String getApprovedBy() {
+        return approvedBy;
+    }
+
+    public void setApprovedBy(String approvedBy) {
+        this.approvedBy = approvedBy;
+    }
+
+    public LocalDateTime getApprovedAt() {
+        return approvedAt;
+    }
+
+    public void setApprovedAt(LocalDateTime approvedAt) {
+        this.approvedAt = approvedAt;
+    }
+
+    public Boolean getRejected() {
+        return rejected;
+    }
+
+    public void setRejected(Boolean rejected) {
+        this.rejected = rejected;
+    }
+
+    public String getRejectedBy() {
+        return rejectedBy;
+    }
+
+    public void setRejectedBy(String rejectedBy) {
+        this.rejectedBy = rejectedBy;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
     }
 }
