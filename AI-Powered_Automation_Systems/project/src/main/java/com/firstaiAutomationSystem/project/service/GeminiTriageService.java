@@ -1,5 +1,5 @@
-//package com.firstaiAutomationSystem.project.service;
-//
-//public class GeminiTriageService {
-//
-//}
+package com.firstaiAutomationSystem.project.service;
+
+public class GeminiTriageService {
+
+}
