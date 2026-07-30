@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class AuthService {
@@ -15,6 +17,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
@@ -45,6 +48,7 @@ public class AuthService {
 
         User saved = userRepository.save(user);
         auditService.log("USER_REGISTERED", "USER", saved.getId(), null);
+        log.info("User registered: userId={}, username={}, role={}", saved.getId(), username, role);
         return saved;
     }
 
@@ -52,12 +56,15 @@ public class AuthService {
     public User authenticate(String username, String password) {
         User user = (User) userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+        log.warn("Login failed: invalid credentials for username={}", username);
 
         if (!user.getEnabled()) {
+            log.warn("Login failed: account disabled for username={}", username);
             throw new IllegalArgumentException("Account disabled");
         }
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            log.warn("Login failed: invalid credentials for username={}", username);
             throw new IllegalArgumentException("Invalid credentials");
         }
 
@@ -65,6 +72,7 @@ public class AuthService {
         userRepository.save(user);
 
         auditService.log("USER_LOGIN", "USER", user.getId(), null);
+        log.info("User login successful: username={}", username);
         return user;
     }
 

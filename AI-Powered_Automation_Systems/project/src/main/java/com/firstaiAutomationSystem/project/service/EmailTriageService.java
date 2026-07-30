@@ -13,6 +13,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class EmailTriageService {
@@ -22,6 +24,8 @@ public class EmailTriageService {
     private final EmailTriageRepository repository;
     private final DocumentExtractionService documentExtractionService;
     private final AiDocumentExtractionService aiDocumentExtractionService;
+    private static final Logger log = LoggerFactory.getLogger(EmailTriageService.class);
+
 
     // Update constructor to inject new services:
     public EmailTriageService(InputSanitizer sanitizer,OpenAiTriageService openAiTriageService,
@@ -44,6 +48,8 @@ public class EmailTriageService {
         String sanitizedEmail = sanitizer.sanitizeEmail(request.senderEmail());
         String sanitizedSubject = sanitizer.sanitizeHtml(request.subject());
         String sanitizedBody = sanitizer.sanitizeForDatabase(request.body());
+        log.info("Email triage started: sender={}, subject={}", sanitizedEmail, sanitizedSubject);
+
         // 1. Extract document data FIRST (if provided)
         String documentFileName = null;
         Map<String, Object> documentData = null;
@@ -70,6 +76,7 @@ public class EmailTriageService {
                 }
             }
         }
+        log.debug("Document extracted: fileName={}", documentFileName);
 
         // 2. Triage email text WITH candidate name context
         AiTriageResult aiResult = openAiTriageService.triage(
@@ -93,6 +100,8 @@ public class EmailTriageService {
         record.setProcessedAt(LocalDateTime.now());
 
         EmailTriageRecord saved = repository.save(record);
+        log.info("Email triaged: id={}, category={}, priority={}",
+                saved.getId(), saved.getCategory(), saved.getPriority());
         return toResponse(saved);
     }
 

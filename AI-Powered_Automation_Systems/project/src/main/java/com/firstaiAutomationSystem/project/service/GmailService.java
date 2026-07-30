@@ -12,12 +12,15 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class GmailService {
 
     private final GmailAuthService gmailAuthService;
     private final EmailTriageService emailTriageService;
+    private static final Logger log = LoggerFactory.getLogger(GmailService.class);
 
     @Value("${gmail.user:me}")
     private String user;
@@ -49,15 +52,17 @@ public class GmailService {
 
         List<Message> messages = response.getMessages();
         if (messages == null || messages.isEmpty()) {
+            log.debug("No unread emails found");
             return processedIds;
         }
+        log.info("Found {} unread emails", messages.size());
 
         for (Message message : messages) {
             try {
                 processEmail(service, message.getId());
                 processedIds.add(message.getId());
             } catch (Exception e) {
-                System.err.println("Error processing message " + message.getId() + ": " + e.getMessage());
+                log.error("Failed to process message: messageId={}", message.getId(), e);
             }
         }
 
@@ -71,12 +76,13 @@ public class GmailService {
                 .setFormat("full")
                 .execute();
 
+
         // Extract email details
         String senderEmail = getHeader(message, "From");
         String subject = getHeader(message, "Subject");
         String body = getEmailBody(message);
         String threadId = message.getThreadId();
-
+        log.info("Processing email: messageId={}, subject={}", messageId, subject);
         // Check for PDF attachments
         MultipartFile pdfAttachment = null;
         if (message.getPayload() != null && message.getPayload().getParts() != null) {
@@ -110,17 +116,17 @@ public class GmailService {
                 // Update database to mark reply as sent
                 emailTriageService.markReplySent(response.id());
 
-                System.out.println("Auto-reply sent to: " + senderEmail +
-                        " (Category: " + response.category() + ")");
+                log.info("Auto-reply sent: sender={}, category={}", senderEmail, response.category());
+
             } catch (Exception e) {
-                System.err.println("Failed to send auto-reply: " + e.getMessage());
+                log.error("Auto-reply failed: sender={}", senderEmail, e);
             }
         }
 
         // Mark as read and apply label
         markAsProcessed(service, messageId);
 
-        System.out.println("Processed email: " + messageId + " - Subject: " + subject);
+        log.info("Email processed: messageId={}", messageId);
     }
 
     // Add this helper method

@@ -13,12 +13,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class AuditService {
 
     private final AuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
+    private static final Logger log = LoggerFactory.getLogger(AuditService.class);
+
 
     public AuditService(AuditLogRepository auditLogRepository,
                         UserRepository userRepository) {
@@ -53,7 +57,8 @@ public class AuditService {
             auditLogRepository.save(log);
         } catch (Exception e) {
             // Don't fail the main transaction if audit logging fails
-            System.err.println("Audit logging failed: " + e.getMessage());
+            log.error("Audit logging failed: action={}, entityType={}, entityId={}",
+                    action, entityType, entityId, e);
         }
     }
 
@@ -79,8 +84,8 @@ public class AuditService {
 
             auditLogRepository.save(log);
         } catch (Exception e) {
-            System.err.println("Audit logging failed: " + e.getMessage());
-        }
+            log.error("Audit logging failed: action={}, entityType={}, entityId={}",
+                    action, entityType, entityId, e);        }
     }
 
     /**
@@ -142,8 +147,8 @@ public class AuditService {
 
             auditLogRepository.save(log);
         } catch (Exception e) {
-            System.err.println("Audit logging failed: " + e.getMessage());
-        }
+            log.error("Audit logging failed: action={}, entityType={}, entityId={}",
+                    action, entityType, entityId, e);        }
     }
 
     /**

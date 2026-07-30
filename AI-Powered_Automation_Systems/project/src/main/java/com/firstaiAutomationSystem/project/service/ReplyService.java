@@ -15,6 +15,8 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
 import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class ReplyService {
@@ -22,6 +24,7 @@ public class ReplyService {
     private final EmailTriageRepository repository;
     private final GmailAuthService gmailAuthService;
     private final AuditService auditService;
+    private static final Logger log = LoggerFactory.getLogger(ReplyService.class);
 
     public ReplyService(EmailTriageRepository repository,
                         GmailAuthService gmailAuthService,
@@ -47,7 +50,7 @@ public class ReplyService {
 
         EmailTriageRecord saved = repository.save(record);
         auditService.logEmailApproval(id, approvedBy);
-
+        log.info("Reply approved: emailId={}, approvedBy={}", id, approvedBy);
         return saved;
     }
 
@@ -67,6 +70,7 @@ public class ReplyService {
 
         EmailTriageRecord saved = repository.save(record);
         auditService.logEmailRejection(id, rejectedBy, reason);
+        log.warn("Reply rejected: emailId={}, rejectedBy={}, reason={}", id, rejectedBy, reason);
 
         return saved;
     }
@@ -101,6 +105,7 @@ public class ReplyService {
 
         EmailTriageRecord saved = repository.save(record);
         auditService.logReplySent(id, record.getApprovedBy(), message.getId());
+        log.info("Reply sent: emailId={}, gmailMessageId={}", id, message.getId());
 
         return saved;
     }
@@ -132,6 +137,7 @@ public class ReplyService {
         }
 
         record.setDraftReply(newDraftReply);
+        log.info("Draft reply edited: emailId={}", id);
         return repository.save(record);
     }
 

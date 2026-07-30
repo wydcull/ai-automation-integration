@@ -8,6 +8,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -15,6 +17,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtService jwtService;
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     public AuthController(AuthService authService, JwtService jwtService) {
         this.authService = authService;
@@ -30,6 +33,8 @@ public class AuthController {
                 request.fullName(),
                 request.role()
         );
+        log.info("Register request: username={}, role={}", request.username(), request.role());
+
         return ResponseEntity.ok(Map.of(
                 "message", "User registered successfully",
                 "userId", user.getId()
@@ -40,6 +45,7 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         User user = authService.authenticate(request.username(), request.password());
         String token = jwtService.generateToken(user.getUsername(), user.getRole().name());
+        log.info("Login request: username={}", request.username());
 
         return ResponseEntity.ok(Map.of(
                 "token", token,

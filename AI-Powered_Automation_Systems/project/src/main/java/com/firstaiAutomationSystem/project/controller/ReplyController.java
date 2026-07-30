@@ -9,12 +9,15 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/replies")
 public class ReplyController {
 
     private final ReplyService replyService;
+    private static final Logger log = LoggerFactory.getLogger(ReplyController.class);
 
     public ReplyController(ReplyService replyService) {
         this.replyService = replyService;
@@ -36,6 +39,7 @@ public class ReplyController {
         }
 
         EmailTriageRecord record = replyService.approveReply(id, approvedBy);
+        log.info("Approve request: emailId={}, user={}", id, approvedBy);
 
         return ResponseEntity.ok(Map.of(
                 "status", "success",
@@ -62,7 +66,7 @@ public class ReplyController {
         }
 
         EmailTriageRecord record = replyService.rejectReply(id, rejectedBy, reason);
-
+        log.info("Reject request: emailId={}, user={}", id, rejectedBy);
         return ResponseEntity.ok(Map.of(
                 "status", "success",
                 "message", "Reply rejected",
@@ -78,6 +82,7 @@ public class ReplyController {
     public ResponseEntity<?> sendReply(@PathVariable Long id) {
         try {
             EmailTriageRecord record = replyService.sendReply(id);
+            log.info("Send reply request: emailId={}", id);
 
             return ResponseEntity.ok(Map.of(
                     "status", "success",
