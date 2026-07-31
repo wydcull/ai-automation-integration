@@ -63,6 +63,7 @@ public class GmailAuthService {
 
         File credentialsFile = new File(credentialsFilePath);
         if (!credentialsFile.exists()) {
+            log.error("Gmail credentials file not found: {}", credentialsFilePath);
             throw new IOException("Credentials file not found: " + credentialsFilePath);
         }
 
@@ -72,6 +73,7 @@ public class GmailAuthService {
         );
 
         // Build flow and trigger user authorization request
+        log.info("Gmail OAuth authorization started");
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                 httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
                 .setDataStoreFactory(new FileDataStoreFactory(new File(tokensDirectoryPath)))
@@ -79,6 +81,7 @@ public class GmailAuthService {
                 .build();
 
         LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(-1).build();
+        log.info("Gmail OAuth authorization completed successfully");
         return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
     }
 
