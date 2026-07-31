@@ -19,10 +19,12 @@ export default function MessageList({ messages, loading }) {
         <MessageBubble key={i} role={m.role} content={m.content} />
       ))}
       {loading && (
-        <div className="bubble-row bot">
-          <div className="bubble bot-bubble typing">Thinking...</div>
-        </div>
-      )}
+  <div className="bubble-row bot">
+    <div className="bubble bot-bubble typing">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+)}
       <div ref={endRef} />
     </div>
   );

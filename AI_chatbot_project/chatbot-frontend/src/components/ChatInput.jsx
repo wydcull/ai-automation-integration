@@ -12,14 +12,20 @@ export default function ChatInput({ onSend, disabled }) {
 
   return (
     <form className="chat-input" onSubmit={handleSubmit}>
-      <input
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Type your message..."
-        maxLength={1000}
-        disabled={disabled}
-      />
+      <textarea
+  value={text}
+  onChange={(e) => setText(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  }}
+  placeholder="Ask about products, orders, or shipping..."
+  maxLength={1000}
+  disabled={disabled}
+  rows={1}
+/>
       <button type="submit" disabled={disabled || !text.trim()}>
         Send
       </button>
