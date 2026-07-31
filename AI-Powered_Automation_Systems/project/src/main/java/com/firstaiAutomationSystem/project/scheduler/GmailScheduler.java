@@ -33,7 +33,7 @@ public class GmailScheduler {
         log.info("Gmail scheduler started");
 
         try {
-            System.out.println("Gmail Scheduler: Fetching unread emails...");
+            log.info("Gmail scheduler fetching unread emails");
             List<String> processedIds = gmailService.fetchAndProcessUnreadEmails();
             log.info("Gmail scheduler completed: processedCount={}", processedIds.size()+ " emails");
         } catch (Exception e) {

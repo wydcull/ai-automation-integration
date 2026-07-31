@@ -12,6 +12,8 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.GmailScopes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +28,7 @@ import java.util.List;
 @Service
 public class GmailAuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(GmailAuthService.class);
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final List<String> SCOPES = Arrays.asList(
             GmailScopes.GMAIL_READONLY,
@@ -56,6 +59,8 @@ public class GmailAuthService {
 
     private Credential getCredentials(final NetHttpTransport httpTransport) throws IOException {
         // Load client secrets
+        log.info("Loading Gmail credentials from: {}", credentialsFilePath);
+
         File credentialsFile = new File(credentialsFilePath);
         if (!credentialsFile.exists()) {
             throw new IOException("Credentials file not found: " + credentialsFilePath);
