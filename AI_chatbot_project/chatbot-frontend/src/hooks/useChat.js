@@ -2,11 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { sendMessage, getRecentHistory, clearHistory } from '../api/chatApi';
 
 const getOrCreateSessionId = () => {
-  let id = localStorage.getItem('chatSessionId');
-  if (!id) {
-    id = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    localStorage.setItem('chatSessionId', id);
-  }
+  // Always new session on page load → chat starts empty
+  const id = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  localStorage.setItem('chatSessionId', id);
   return id;
 };
 
