@@ -126,6 +126,7 @@ public class EmailTriageService {
                 record.getId(),
                 record.getSenderEmail(),
                 record.getSubject(),
+                record.getBody(),
                 record.getCategory(),
                 record.getPriority(),
                 record.getSummary(),
@@ -133,10 +134,15 @@ public class EmailTriageService {
                 record.getExtractedData(),
                 record.getDocumentFileName(),
                 record.getDocumentExtractedData(),
-                record.getProcessedAt()
+                record.getProcessedAt(),
+                record.getApproved(),
+                record.getRejected(),
+                record.getReplySent(),
+                record.getApprovedBy(),
+                record.getApprovedAt(),
+                record.getRejectionReason()
         );
     }
-
     @Transactional
     public EmailTriageResponse processFromGmail(EmailTriageRequest request, MultipartFile document,
                                                 String gmailMessageId, String gmailThreadId) {
