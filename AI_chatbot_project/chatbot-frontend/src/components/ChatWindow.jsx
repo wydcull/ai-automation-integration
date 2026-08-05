@@ -3,14 +3,14 @@ import ChatInput from './ChatInput';
 import { useChat } from '../hooks/useChat';
 
 export default function ChatWindow() {
-  const { sessionId, messages, loading, error, send, clear } = useChat();
+  const { messages, loading, error, send, clear } = useChat();
 
   return (
     <div className="chat-window">
       <header className="chat-header">
         <div>
           <h1>ShopEasy Support</h1>
-          <small>Session: {sessionId}</small>
+          <small>Customer support assistant</small>
         </div>
         <button onClick={clear} className="clear-btn">
           Clear chat
