@@ -56,7 +56,7 @@ public class AuthService {
     public User authenticate(String username, String password) {
         User user = (User) userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
-        log.warn("Login failed: invalid credentials for username={}", username);
+
 
         if (!user.getEnabled()) {
             log.warn("Login failed: account disabled for username={}", username);
