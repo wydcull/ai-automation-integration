@@ -43,6 +43,36 @@
   cursor: pointer;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.new-chat-btn {
+  background: #4f46e5;
+  border: 1px solid #4f46e5;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.new-chat-btn:hover {
+  background: #4338ca;
+}
+
+.new-chat-btn:disabled,
+.clear-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clear-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .message-list {
   flex: 1;
   overflow-y: auto;

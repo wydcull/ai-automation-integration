@@ -1,15 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { sendMessage, getRecentHistory, clearHistory } from '../api/chatApi';
 
+const createSessionId = () =>
+  `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
 const getOrCreateSessionId = () => {
-  // Always new session on page load → chat starts empty
-  const id = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  localStorage.setItem('chatSessionId', id);
+  let id = localStorage.getItem('chatSessionId');
+  if (!id) {
+    id = createSessionId();
+    localStorage.setItem('chatSessionId', id);
+  }
   return id;
 };
 
 export function useChat() {
-  const [sessionId] = useState(getOrCreateSessionId);
+  const [sessionId, setSessionId] = useState(getOrCreateSessionId);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -19,14 +24,14 @@ export function useChat() {
       .then((history) => {
         setMessages(
           history.map((m) => ({
-            role: m.role, // USER | ASSISTANT
+            role: m.role,
             content: m.content,
             timestamp: m.createdAt,
           }))
         );
       })
       .catch(() => {
-        // empty history is fine for new sessions
+        setMessages([]);
       });
   }, [sessionId]);
 
@@ -66,5 +71,14 @@ export function useChat() {
     setError(null);
   }, [sessionId]);
 
-  return { sessionId, messages, loading, error, send, clear };
+  // NEW: start a brand-new conversation
+  const startNewChat = useCallback(() => {
+    const newId = createSessionId();
+    localStorage.setItem('chatSessionId', newId);
+    setSessionId(newId);
+    setMessages([]);
+    setError(null);
+  }, []);
+
+  return { sessionId, messages, loading, error, send, clear, startNewChat };
 }

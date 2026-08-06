@@ -3,7 +3,7 @@ import ChatInput from './ChatInput';
 import { useChat } from '../hooks/useChat';
 
 export default function ChatWindow() {
-  const { messages, loading, error, send, clear } = useChat();
+  const { messages, loading, error, send, clear, startNewChat } = useChat();
 
   return (
     <div className="chat-window">
@@ -12,9 +12,14 @@ export default function ChatWindow() {
           <h1>ShopEasy Support</h1>
           <small>Customer support assistant</small>
         </div>
-        <button onClick={clear} className="clear-btn">
-          Clear chat
-        </button>
+        <div className="header-actions">
+          <button onClick={startNewChat} className="new-chat-btn" disabled={loading}>
+            New chat
+          </button>
+          <button onClick={clear} className="clear-btn" disabled={loading}>
+            Clear chat
+          </button>
+        </div>
       </header>
 
       <MessageList messages={messages} loading={loading} />
