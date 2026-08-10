@@ -22,7 +22,7 @@ export default function ChatWindow() {
         </div>
       </header>
 
-      <MessageList messages={messages} loading={loading} />
+      <MessageList messages={messages} loading={loading} onSuggestionClick={send} />
 
       {error && <div className="error-banner">{error}</div>}
 
