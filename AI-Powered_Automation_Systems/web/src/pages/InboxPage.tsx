@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getAllEmails, type EmailTriage } from "../api/triage";
+import { getGmailConnectUrl, getGmailStatus } from "../api/gmail";
 
 function statusLabel(email: EmailTriage): string {
   if (email.replySent) return "Sent";
@@ -29,6 +30,9 @@ export default function InboxPage() {
   const [error, setError] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [gmailEmail, setGmailEmail] = useState("");
+  const [gmailBusy, setGmailBusy] = useState(false);
 
   const username = localStorage.getItem("username");
   const role = localStorage.getItem("role");
@@ -39,6 +43,28 @@ export default function InboxPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+  getGmailStatus()
+    .then((info) => {
+      setGmailConnected(info.status === "connected");
+      setGmailEmail(info.email || "");
+    })
+    .catch(() => {
+      setGmailConnected(false);
+    });
+}, []);
+
+async function connectGmail() {
+  setGmailBusy(true);
+  try {
+    const { authUrl } = await getGmailConnectUrl();
+    window.location.href = authUrl;
+  } catch (err) {
+    setGmailBusy(false);
+    setError(err instanceof Error ? err.message : "Failed to start Gmail connect");
+  }
+}
 
   const categories = useMemo(
     () => ["ALL", ...Array.from(new Set(emails.map((e) => e.category).filter(Boolean)))],
@@ -75,7 +101,21 @@ export default function InboxPage() {
             {username} ({role}) · {filtered.length} emails
           </p>
         </div>
-        <button onClick={logout}>Logout</button>
+       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+  {gmailConnected ? (
+    <>
+      <span style={{ color: "#166534", fontSize: 14 }}>
+        Gmail: {gmailEmail || "connected"}
+      </span>
+      <Link to="/gmail">Gmail settings</Link>
+    </>
+  ) : (
+    <button disabled={gmailBusy} onClick={connectGmail}>
+      {gmailBusy ? "Opening Google..." : "Connect Gmail"}
+    </button>
+  )}
+  <button onClick={logout}>Logout</button>
+</div>
       </header>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>

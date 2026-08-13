@@ -3,6 +3,8 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import InboxPage from "./pages/InboxPage";
 import EmailDetailPage from "./pages/EmailDetailPage";
+import GmailPage from "./pages/GmailPage";
+
 
 export default function App() {
   return (
@@ -16,6 +18,14 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+  path="/gmail"
+  element={
+    <ProtectedRoute>
+      <GmailPage />
+    </ProtectedRoute>
+  }
+/>
       <Route
         path="/emails/:id"
         element={

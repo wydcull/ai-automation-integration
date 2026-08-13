@@ -1,10 +1,9 @@
 package com.firstaiAutomationSystem.project.service;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
-import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
+import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -22,8 +21,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
+import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class GmailAuthService {
@@ -35,6 +38,7 @@ public class GmailAuthService {
             GmailScopes.GMAIL_MODIFY,
             GmailScopes.GMAIL_SEND
     );
+    private static final String USER_ID = "user";
 
     @Value("${gmail.credentials.file}")
     private String credentialsFilePath;
@@ -45,49 +49,78 @@ public class GmailAuthService {
     @Value("${gmail.application.name}")
     private String applicationName;
 
+    @Value("${gmail.redirect.uri}")
+    private String redirectUri;
+
     private Gmail gmailService;
+    private final Map<String, Long> oauthStates = new ConcurrentHashMap<>();
+
+    public boolean isConnected() {
+        try {
+            Credential credential = loadStoredCredential();
+            return credential != null && (
+                    credential.getRefreshToken() != null
+                            || (credential.getExpiresInSeconds() != null && credential.getExpiresInSeconds() > 60)
+            );
+        } catch (Exception e) {
+            log.debug("Gmail not connected: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    public String createAuthorizationUrl() throws IOException, GeneralSecurityException {
+        String state = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(new SecureRandom().generateSeed(24));
+        oauthStates.put(state, System.currentTimeMillis());
+
+        return buildFlow().newAuthorizationUrl()
+                .setRedirectUri(redirectUri)
+                .setState(state)
+                .set("prompt", "select_account consent")
+                .build();
+    }
+
+    public boolean isValidState(String state) {
+        Long created = oauthStates.remove(state);
+        if (created == null) {
+            return false;
+        }
+        return System.currentTimeMillis() - created < 10 * 60 * 1000;
+    }
+
+    public void handleCallback(String code) throws IOException, GeneralSecurityException {
+        GoogleAuthorizationCodeFlow flow = buildFlow();
+        GoogleTokenResponse tokenResponse = flow.newTokenRequest(code)
+                .setRedirectUri(redirectUri)
+                .execute();
+        flow.createAndStoreCredential(tokenResponse, USER_ID);
+        gmailService = null;
+        log.info("Gmail OAuth callback stored credentials");
+    }
 
     public Gmail getGmailService() throws IOException, GeneralSecurityException {
+        if (!isConnected()) {
+            throw new IOException("Gmail is not connected. Authorize from the UI first.");
+        }
         if (gmailService == null) {
-            final NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-            gmailService = new Gmail.Builder(httpTransport, JSON_FACTORY, getCredentials(httpTransport))
+            NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+            gmailService = new Gmail.Builder(httpTransport, JSON_FACTORY, loadStoredCredential())
                     .setApplicationName(applicationName)
                     .build();
         }
         return gmailService;
     }
 
-    private Credential getCredentials(final NetHttpTransport httpTransport) throws IOException {
-        // Load client secrets
-        log.info("Loading Gmail credentials from: {}", credentialsFilePath);
-
-        File credentialsFile = new File(credentialsFilePath);
-        if (!credentialsFile.exists()) {
-            log.error("Gmail credentials file not found: {}", credentialsFilePath);
-            throw new IOException("Credentials file not found: " + credentialsFilePath);
+    public String getConnectedEmail() {
+        try {
+            return getGmailService().users().getProfile("me").execute().getEmailAddress();
+        } catch (Exception e) {
+            return null;
         }
-
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(
-                JSON_FACTORY,
-                new InputStreamReader(new FileInputStream(credentialsFile))
-        );
-
-        // Build flow and trigger user authorization request
-        log.info("Gmail OAuth authorization started");
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new File(tokensDirectoryPath)))
-                .setAccessType("offline")
-                .build();
-
-        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(-1).build();
-        log.info("Gmail OAuth authorization completed successfully");
-        return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
     }
 
     public void invalidateToken() {
         gmailService = null;
-        // Optionally delete token files
         File tokensDir = new File(tokensDirectoryPath);
         if (tokensDir.exists() && tokensDir.isDirectory()) {
             File[] files = tokensDir.listFiles();
@@ -97,5 +130,26 @@ public class GmailAuthService {
                 }
             }
         }
+    }
+
+    private Credential loadStoredCredential() throws IOException, GeneralSecurityException {
+        return buildFlow().loadCredential(USER_ID);
+    }
+
+    private GoogleAuthorizationCodeFlow buildFlow() throws IOException, GeneralSecurityException {
+        File credentialsFile = new File(credentialsFilePath);
+        if (!credentialsFile.exists()) {
+            throw new IOException("Credentials file not found: " + credentialsFilePath);
+        }
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(
+                JSON_FACTORY,
+                new InputStreamReader(new FileInputStream(credentialsFile))
+        );
+        NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+        return new GoogleAuthorizationCodeFlow.Builder(
+                httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
+                .setDataStoreFactory(new FileDataStoreFactory(new File(tokensDirectoryPath)))
+                .setAccessType("offline")
+                .build();
     }
 }

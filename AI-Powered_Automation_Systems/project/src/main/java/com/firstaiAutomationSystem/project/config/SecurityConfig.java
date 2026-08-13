@@ -36,7 +36,7 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/gmail/callback").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/replies/**").hasAnyRole("ADMIN", "APPROVER")
                         .requestMatchers("/api/automation/**").hasAnyRole("ADMIN", "APPROVER", "VIEWER")
