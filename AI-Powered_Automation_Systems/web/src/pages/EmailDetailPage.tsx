@@ -72,12 +72,12 @@ export default function EmailDetailPage() {
     }
   }
 
-  if (loading) return <p style={{ padding: 24 }}>Loading email...</p>;
+  if (loading) return <p className="muted">Loading email...</p>;
   if (error && !email) {
     return (
-      <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <p style={{ color: "crimson" }}>{error}</p>
-        <Link to="/">← Back to Inbox</Link>
+      <div>
+        <p className="error">{error}</p>
+        <Link to="/" className="muted">← Back to Inbox</Link>
       </div>
     );
   }
@@ -88,43 +88,39 @@ export default function EmailDetailPage() {
   const alreadyRejected = !!email.rejected;
 
   return (
-    <div style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 900 }}>
-      <p>
-        <Link to="/">← Back to Inbox</Link>
+    <div>
+      <p className="muted" style={{ marginBottom: 12 }}>
+        <Link to="/">← Inbox</Link>
       </p>
 
-      <h1 style={{ marginBottom: 4 }}>{email.subject}</h1>
-      <p style={{ color: "#555", marginTop: 0 }}>
-        From: {email.senderEmail} · {email.category} · {email.priority} ·{" "}
-        <strong>{status}</strong>
+      <h1 className="page-title">{email.subject}</h1>
+      <p className="muted" style={{ marginBottom: 16 }}>
+        {email.senderEmail}
+        {" · "}
+        <span className="badge badge-pending">{email.category}</span>{" "}
+        <span className={`badge badge-${(email.priority || "low").toLowerCase()}`}>
+          {email.priority}
+        </span>{" "}
+        <span className={`badge badge-${status.toLowerCase()}`}>{status}</span>
       </p>
 
-      {message && <p style={{ color: "#166534" }}>{message}</p>}
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      {message && <p className="ok">{message}</p>}
+      {error && <p className="error">{error}</p>}
 
-      <section style={{ marginBottom: 20 }}>
+      <section className="card card-pad">
         <h3>Summary</h3>
-        <p>{email.summary || "-"}</p>
+        <p>{email.summary || "—"}</p>
       </section>
 
-      <section style={{ marginBottom: 20 }}>
+      <section className="card card-pad">
         <h3>Original email</h3>
-        <pre
-          style={{
-            whiteSpace: "pre-wrap",
-            background: "#f6f6f6",
-            padding: 12,
-            borderRadius: 6,
-          }}
-        >
-          {email.body || "(no body)"}
-        </pre>
+        <pre className="body-pre">{email.body || "(no body)"}</pre>
       </section>
 
       {email.extractedData && Object.keys(email.extractedData).length > 0 && (
-        <section style={{ marginBottom: 20 }}>
+        <section className="card card-pad">
           <h3>Extracted from email</h3>
-          <ul>
+          <ul className="kv-list">
             {Object.entries(email.extractedData).map(([k, v]) => (
               <li key={k}>
                 <strong>{k}:</strong> {String(v)}
@@ -135,11 +131,11 @@ export default function EmailDetailPage() {
       )}
 
       {email.documentFileName && (
-        <section style={{ marginBottom: 20 }}>
+        <section className="card card-pad">
           <h3>Document: {email.documentFileName}</h3>
           {email.documentExtractedData &&
           Object.keys(email.documentExtractedData).length > 0 ? (
-            <ul>
+            <ul className="kv-list">
               {Object.entries(email.documentExtractedData).map(([k, v]) => (
                 <li key={k}>
                   <strong>{k}:</strong> {String(v)}
@@ -147,25 +143,27 @@ export default function EmailDetailPage() {
               ))}
             </ul>
           ) : (
-            <p>No document fields extracted.</p>
+            <p className="muted">No document fields extracted.</p>
           )}
         </section>
       )}
 
-      <section style={{ marginBottom: 20 }}>
+      <section className="card card-pad">
         <h3>Draft reply</h3>
         <textarea
+          className="textarea"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           readOnly={!approver || alreadySent || alreadyRejected}
           rows={10}
-          style={{ width: "100%", padding: 10, fontFamily: "inherit" }}
+          style={{ width: "100%", minHeight: 180 }}
         />
       </section>
 
       {approver && !alreadySent && !alreadyRejected && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <div className="actions">
           <button
+            className="btn btn-ghost"
             disabled={busy || !draft.trim()}
             onClick={() =>
               runAction(() => editDraftReply(email.id, draft), "Draft saved")
@@ -173,15 +171,15 @@ export default function EmailDetailPage() {
           >
             Save draft
           </button>
-
           <button
+            className="btn"
             disabled={busy}
             onClick={() => runAction(() => approveReply(email.id), "Approved")}
           >
             Approve
           </button>
-
           <button
+            className="btn btn-danger"
             disabled={busy}
             onClick={() => {
               const reason = window.prompt("Rejection reason (optional):") || "";
@@ -190,17 +188,17 @@ export default function EmailDetailPage() {
           >
             Reject
           </button>
-
           {email.approved && (
             <button
+              className="btn btn-gold"
               disabled={busy}
               onClick={() => runAction(() => sendReply(email.id), "Reply sent")}
             >
               Send
             </button>
           )}
-
           <button
+            className="btn btn-gold"
             disabled={busy}
             onClick={() =>
               runAction(() => approveAndSend(email.id), "Approved and sent")
@@ -212,17 +210,17 @@ export default function EmailDetailPage() {
       )}
 
       {!approver && (
-        <p style={{ color: "#666" }}>View-only (your role cannot approve/send).</p>
+        <p className="muted">View-only (your role cannot approve/send).</p>
       )}
 
       {email.approvedBy && (
-        <p style={{ marginTop: 16, color: "#555" }}>
+        <p className="muted" style={{ marginTop: 16 }}>
           Approved by {email.approvedBy}
           {email.approvedAt ? ` at ${new Date(email.approvedAt).toLocaleString()}` : ""}
         </p>
       )}
       {email.rejectionReason && (
-        <p style={{ color: "#b91c1c" }}>Rejection reason: {email.rejectionReason}</p>
+        <p className="error">Rejection reason: {email.rejectionReason}</p>
       )}
     </div>
   );

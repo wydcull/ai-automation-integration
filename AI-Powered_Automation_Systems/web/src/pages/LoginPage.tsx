@@ -24,33 +24,41 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: "80px auto", fontFamily: "sans-serif" }}>
-      <h1>Login</h1>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Username</label>
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            style={{ display: "block", width: "100%", padding: 8 }}
-          />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ display: "block", width: "100%", padding: 8 }}
-          />
-        </div>
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
-        <button type="submit" disabled={loading}>
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+    <div className="login-wrap">
+      <div className="login-card">
+        <h1>Welcome back</h1>
+        <p className="muted">Sign in to review triaged mail.</p>
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Username</label>
+            <input
+              className="input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
+            <label>Password</label>
+            <input
+              className="input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          {error && <p className="error">{error}</p>}
+          <button
+            className="btn btn-gold"
+            type="submit"
+            disabled={loading}
+            style={{ width: "100%", marginTop: 12 }}
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

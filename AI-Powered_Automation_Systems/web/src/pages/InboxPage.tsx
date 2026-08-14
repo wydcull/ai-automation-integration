@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { getAllEmails, type EmailTriage } from "../api/triage";
 import { getGmailConnectUrl, getGmailStatus } from "../api/gmail";
 
@@ -10,21 +10,7 @@ function statusLabel(email: EmailTriage): string {
   return "Pending";
 }
 
-function statusColor(status: string): string {
-  switch (status) {
-    case "Sent":
-      return "#166534";
-    case "Approved":
-      return "#1d4ed8";
-    case "Rejected":
-      return "#b91c1c";
-    default:
-      return "#a16207";
-  }
-}
-
 export default function InboxPage() {
-  const navigate = useNavigate();
   const [emails, setEmails] = useState<EmailTriage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,9 +20,6 @@ export default function InboxPage() {
   const [gmailEmail, setGmailEmail] = useState("");
   const [gmailBusy, setGmailBusy] = useState(false);
 
-  const username = localStorage.getItem("username");
-  const role = localStorage.getItem("role");
-
   useEffect(() => {
     getAllEmails()
       .then(setEmails)
@@ -45,26 +28,26 @@ export default function InboxPage() {
   }, []);
 
   useEffect(() => {
-  getGmailStatus()
-    .then((info) => {
-      setGmailConnected(info.status === "connected");
-      setGmailEmail(info.email || "");
-    })
-    .catch(() => {
-      setGmailConnected(false);
-    });
-}, []);
+    getGmailStatus()
+      .then((info) => {
+        setGmailConnected(info.status === "connected");
+        setGmailEmail(info.email || "");
+      })
+      .catch(() => {
+        setGmailConnected(false);
+      });
+  }, []);
 
-async function connectGmail() {
-  setGmailBusy(true);
-  try {
-    const { authUrl } = await getGmailConnectUrl();
-    window.location.href = authUrl;
-  } catch (err) {
-    setGmailBusy(false);
-    setError(err instanceof Error ? err.message : "Failed to start Gmail connect");
+  async function connectGmail() {
+    setGmailBusy(true);
+    try {
+      const { authUrl } = await getGmailConnectUrl();
+      window.location.href = authUrl;
+    } catch (err) {
+      setGmailBusy(false);
+      setError(err instanceof Error ? err.message : "Failed to start Gmail connect");
+    }
   }
-}
 
   const categories = useMemo(
     () => ["ALL", ...Array.from(new Set(emails.map((e) => e.category).filter(Boolean)))],
@@ -77,118 +60,73 @@ async function connectGmail() {
     return catOk && priOk;
   });
 
-  function logout() {
-    localStorage.clear();
-    window.location.href = "/login";
-  }
-
-  if (loading) return <p style={{ padding: 24 }}>Loading inbox...</p>;
-  if (error) return <p style={{ padding: 24, color: "crimson" }}>{error}</p>;
+  if (loading) return <p className="muted">Loading inbox...</p>;
 
   return (
-    <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
-        <div>
-          <h1 style={{ margin: 0 }}>Inbox</h1>
-          <p style={{ margin: "4px 0 0", color: "#555" }}>
-            {username} ({role}) · {filtered.length} emails
-          </p>
-        </div>
-       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-  {gmailConnected ? (
-    <>
-      <span style={{ color: "#166534", fontSize: 14 }}>
-        Gmail: {gmailEmail || "connected"}
-      </span>
-      <Link to="/gmail">Gmail settings</Link>
-    </>
-  ) : (
-    <button disabled={gmailBusy} onClick={connectGmail}>
-      {gmailBusy ? "Opening Google..." : "Connect Gmail"}
-    </button>
-  )}
-  <button onClick={logout}>Logout</button>
-</div>
-      </header>
+    <div>
+      <h1 className="page-title">Inbox</h1>
+      <p className="muted">{filtered.length} conversations</p>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <label>
-          Category{" "}
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Priority{" "}
-          <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-            <option value="ALL">ALL</option>
-            <option value="HIGH">HIGH</option>
-            <option value="MEDIUM">MEDIUM</option>
-            <option value="LOW">LOW</option>
-          </select>
-        </label>
+      {error && <p className="error" style={{ marginTop: 12 }}>{error}</p>}
+
+      <div className="toolbar">
+        <select
+          className="select"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+        >
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <select
+          className="select"
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value)}
+        >
+          <option value="ALL">ALL</option>
+          <option value="HIGH">HIGH</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="LOW">LOW</option>
+        </select>
+        {gmailConnected ? (
+          <span className="muted">Gmail · {gmailEmail}</span>
+        ) : (
+          <button className="btn btn-gold" disabled={gmailBusy} onClick={connectGmail}>
+            {gmailBusy ? "Opening Google..." : "Connect Gmail"}
+          </button>
+        )}
       </div>
 
       {filtered.length === 0 ? (
-        <p>No emails found. Process some via Gmail fetch or manual triage.</p>
+        <div className="card card-pad">
+          <p className="muted">No emails found. Connect Gmail and fetch unread mail, or process a message from the detail flow.</p>
+        </div>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-              <th style={{ padding: 8 }}>Subject</th>
-              <th style={{ padding: 8 }}>From</th>
-              <th style={{ padding: 8 }}>Category</th>
-              <th style={{ padding: 8 }}>Priority</th>
-              <th style={{ padding: 8 }}>Status</th>
-              <th style={{ padding: 8 }}>Processed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((email) => {
-              const status = statusLabel(email);
-              return (
-                <tr
-                  key={email.id}
-                  onClick={() => navigate(`/emails/${email.id}`)}
-                  style={{ borderBottom: "1px solid #eee", cursor: "pointer" }}
-                >
-                  <td style={{ padding: 8 }}>
-                    <Link
-                      to={`/emails/${email.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ color: "inherit", textDecoration: "none", fontWeight: 600 }}
-                    >
-                      {email.subject}
-                    </Link>
-                    <div style={{ fontSize: 12, color: "#666" }}>{email.summary}</div>
-                  </td>
-                  <td style={{ padding: 8 }}>{email.senderEmail}</td>
-                  <td style={{ padding: 8 }}>{email.category}</td>
-                  <td style={{ padding: 8 }}>{email.priority}</td>
-                  <td style={{ padding: 8, color: statusColor(status), fontWeight: 600 }}>
-                    {status}
-                  </td>
-                  <td style={{ padding: 8 }}>
-                    {email.processedAt
-                      ? new Date(email.processedAt).toLocaleString()
-                      : "-"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="card">
+          {filtered.map((email) => {
+            const status = statusLabel(email);
+            return (
+              <Link key={email.id} to={`/emails/${email.id}`} className="email-row">
+                <div>
+                  <div className="subject">{email.subject}</div>
+                  <div className="summary">{email.summary}</div>
+                </div>
+                <div className="muted">{email.senderEmail}</div>
+                <span className="badge badge-pending">{email.category}</span>
+                <span className={`badge badge-${(email.priority || "low").toLowerCase()}`}>
+                  {email.priority}
+                </span>
+                <span className={`badge badge-${status.toLowerCase()}`}>{status}</span>
+                <div className="muted">
+                  {email.processedAt ? new Date(email.processedAt).toLocaleString() : "—"}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       )}
     </div>
   );
