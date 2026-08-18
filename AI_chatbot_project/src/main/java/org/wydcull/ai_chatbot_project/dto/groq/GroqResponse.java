@@ -24,6 +24,7 @@ public class GroqResponse {
     public static class Message {
         private String role;
         private String content;
+        private String reasoning;  // Qwen thinking goes here when format=parsed
     }
 
     @Data
@@ -35,12 +36,29 @@ public class GroqResponse {
     }
 
     public String getGeneratedText() {
-        if (choices != null && !choices.isEmpty()) {
-            Choice choice = choices.get(0);
-            if (choice.getMessage() != null && choice.getMessage().getContent() != null) {
-                return choice.getMessage().getContent();
-            }
+        if (choices == null || choices.isEmpty() || choices.get(0).getMessage() == null) {
+            return "";
         }
-        return "";
+
+        Message message = choices.get(0).getMessage();
+        String content = stripThinking(message.getContent());
+
+        if (content != null && !content.isBlank()) {
+            return content;
+        }
+
+        // Fallback if API put the visible answer only in reasoning
+        return stripThinking(message.getReasoning());
+    }
+
+    private String stripThinking(String content) {
+        if (content == null || content.isBlank()) {
+            return "";
+        }
+
+        // Remove complete think blocks only (do not wipe unclosed text)
+        String cleaned = content.replaceAll("(?s)<think>.*?</think>", "");
+        cleaned = cleaned.replaceAll("(?s)</think>", "");
+        return cleaned.trim();
     }
 }

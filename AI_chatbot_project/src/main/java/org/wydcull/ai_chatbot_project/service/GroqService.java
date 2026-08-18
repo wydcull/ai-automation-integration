@@ -131,8 +131,8 @@ public class GroqService {
             return handleRateLimitError(messages, attemptNumber, e);
 
         } catch (WebClientResponseException e) {
-            log.error("HTTP error calling Groq API: {} - {}", e.getStatusCode(), e.getMessage());
-            throw new RuntimeException("Failed to call Groq API: " + e.getMessage(), e);
+            log.error("HTTP error calling Groq API: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("Failed to call Groq API: " + e.getResponseBodyAsString(), e);
 
         } catch (Exception e) {
             log.error("Error calling Groq API: {}", e.getMessage(), e);
@@ -163,6 +163,6 @@ public class GroqService {
     }
 
     private GroqRequest buildRequest(List<GroqRequest.Message> messages) {
-        return new GroqRequest(model, messages, temperature, maxTokens);
+        return new GroqRequest(model, messages, temperature, maxTokens, "parsed", "none");
     }
 }

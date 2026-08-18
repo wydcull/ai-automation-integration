@@ -14,6 +14,9 @@ public class GroqRequest {
     private List<Message> messages;
     private Double temperature;
     private Integer max_tokens;
+    private String reasoning_format;   // parsed = answer in content, thinking separate
+    private String reasoning_effort;   // low = less thinking, more room for the answer
+
 
     @Data
     @NoArgsConstructor
