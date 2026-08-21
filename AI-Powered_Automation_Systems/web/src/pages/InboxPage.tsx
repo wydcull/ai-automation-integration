@@ -19,6 +19,8 @@ export default function InboxPage() {
   const [gmailConnected, setGmailConnected] = useState(false);
   const [gmailEmail, setGmailEmail] = useState("");
   const [gmailBusy, setGmailBusy] = useState(false);
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     getAllEmails()
@@ -59,13 +61,28 @@ export default function InboxPage() {
     const priOk = priorityFilter === "ALL" || e.priority === priorityFilter;
     return catOk && priOk;
   });
+/////////////////
+  useEffect(() => {
+  setPage(1);
+}, [categoryFilter, priorityFilter]);
+
+const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+const currentPage = Math.min(page, totalPages);
+const paged = filtered.slice(
+  (currentPage - 1) * PAGE_SIZE,
+  currentPage * PAGE_SIZE
+);
 
   if (loading) return <p className="muted">Loading inbox...</p>;
 
   return (
     <div>
       <h1 className="page-title">Inbox</h1>
-      <p className="muted">{filtered.length} conversations</p>
+      <p className="muted">
+  {filtered.length} conversations
+  {filtered.length > 0 &&
+    ` · page ${currentPage} of ${totalPages}`}
+</p>
 
       {error && <p className="error" style={{ marginTop: 12 }}>{error}</p>}
 
@@ -106,7 +123,7 @@ export default function InboxPage() {
         </div>
       ) : (
         <div className="card">
-          {filtered.map((email) => {
+          {paged.map((email) => {
             const status = statusLabel(email);
             return (
               <Link key={email.id} to={`/emails/${email.id}`} className="email-row">
@@ -128,6 +145,33 @@ export default function InboxPage() {
           })}
         </div>
       )}
+      {filtered.length > PAGE_SIZE && (
+  <div className="pager">
+    <button
+      className="btn btn-ghost"
+      disabled={currentPage === 1}
+      onClick={() => setPage(currentPage - 1)}
+    >
+      Previous
+    </button>
+    {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+      <button
+        key={n}
+        className={"btn" + (n === currentPage ? " btn-gold" : " btn-ghost")}
+        onClick={() => setPage(n)}
+      >
+        {n}
+      </button>
+    ))}
+    <button
+      className="btn btn-ghost"
+      disabled={currentPage === totalPages}
+      onClick={() => setPage(currentPage + 1)}
+    >
+      Next
+    </button>
+  </div>
+)}
     </div>
   );
 }
