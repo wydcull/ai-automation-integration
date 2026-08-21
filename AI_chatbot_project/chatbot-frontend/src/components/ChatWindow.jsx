@@ -16,9 +16,15 @@ export default function ChatWindow() {
           <button onClick={startNewChat} className="new-chat-btn" disabled={loading}>
             New chat
           </button>
-          <button onClick={clear} className="clear-btn" disabled={loading}>
-            Clear chat
-          </button>
+          <button
+  onClick={() => {
+    if (window.confirm('Clear this chat?')) clear();
+  }}
+  className="clear-btn"
+  disabled={loading || messages.length === 0}
+>
+  Clear chat
+</button>
         </div>
       </header>
 
