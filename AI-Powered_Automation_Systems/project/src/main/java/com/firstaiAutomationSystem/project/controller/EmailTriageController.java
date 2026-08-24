@@ -2,6 +2,7 @@ package com.firstaiAutomationSystem.project.controller;
 
 import com.firstaiAutomationSystem.project.model.EmailTriageRequest;
 import com.firstaiAutomationSystem.project.model.EmailTriageResponse;
+import com.firstaiAutomationSystem.project.model.dto.EmailTriageListItem;
 import com.firstaiAutomationSystem.project.service.EmailTriageService;
 import com.firstaiAutomationSystem.project.validator.EmailValidator;
 import jakarta.validation.constraints.Email;
@@ -11,6 +12,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -49,10 +54,13 @@ public class EmailTriageController {
     }
 
     @GetMapping
-    public List<EmailTriageResponse> findAll() {
-        return emailTriageService.findAll();
+    public Page<EmailTriageListItem> search(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String priority,
+            @PageableDefault(size = 20, sort = "processedAt", direction = Sort.Direction.DESC)
+            Pageable pageable) {
+        return emailTriageService.search(category, priority, pageable);
     }
-
     @GetMapping("/{id}")
     public EmailTriageResponse findById(@PathVariable Long id) {
         return emailTriageService.findById(id);

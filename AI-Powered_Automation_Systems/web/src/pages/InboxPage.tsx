@@ -1,17 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getAllEmails, type EmailTriage } from "../api/triage";
+import { getEmails, type EmailTriageListItem } from "../api/triage";
 import { getGmailConnectUrl, getGmailStatus } from "../api/gmail";
 
-function statusLabel(email: EmailTriage): string {
+function statusLabel(email: EmailTriageListItem): string {
   if (email.replySent) return "Sent";
   if (email.rejected) return "Rejected";
   if (email.approved) return "Approved";
   return "Pending";
 }
 
+const CATEGORIES = [
+  "ALL",
+  "BILLING",
+  "TECHNICAL",
+  "SALES",
+  "COMPLAINT",
+  "ORDER_STATUS",
+  "GENERAL",
+  "ENQUIRY",
+  "JOB_APPLICATION",
+];
+
+const PAGE_SIZE = 20;
+
 export default function InboxPage() {
-  const [emails, setEmails] = useState<EmailTriage[]>([]);
+  const [emails, setEmails] = useState<EmailTriageListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
@@ -19,15 +33,38 @@ export default function InboxPage() {
   const [gmailConnected, setGmailConnected] = useState(false);
   const [gmailEmail, setGmailEmail] = useState("");
   const [gmailBusy, setGmailBusy] = useState(false);
-  const PAGE_SIZE = 10;
-  const [page, setPage] = useState(1);
 
+  // Spring uses 0-based page numbers
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+
+  // Fetch one page from backend whenever page/filters change
   useEffect(() => {
-    getAllEmails()
-      .then(setEmails)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
+    setLoading(true);
+    setError("");
+
+    getEmails({
+      page,
+      size: PAGE_SIZE,
+      category: categoryFilter,
+      priority: priorityFilter,
+    })
+      .then((data) => {
+        setEmails(data.content);
+        setTotalPages(data.totalPages);
+        setTotalElements(data.totalElements);
+      })
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Failed to load")
+      )
       .finally(() => setLoading(false));
-  }, []);
+  }, [page, categoryFilter, priorityFilter]);
+
+  // Reset to first page when filters change
+  // useEffect(() => {
+  //   setPage(0);
+  // }, [categoryFilter, priorityFilter]);
 
   useEffect(() => {
     getGmailStatus()
@@ -35,9 +72,7 @@ export default function InboxPage() {
         setGmailConnected(info.status === "connected");
         setGmailEmail(info.email || "");
       })
-      .catch(() => {
-        setGmailConnected(false);
-      });
+      .catch(() => setGmailConnected(false));
   }, []);
 
   async function connectGmail() {
@@ -47,31 +82,11 @@ export default function InboxPage() {
       window.location.href = authUrl;
     } catch (err) {
       setGmailBusy(false);
-      setError(err instanceof Error ? err.message : "Failed to start Gmail connect");
+      setError(
+        err instanceof Error ? err.message : "Failed to start Gmail connect"
+      );
     }
   }
-
-  const categories = useMemo(
-    () => ["ALL", ...Array.from(new Set(emails.map((e) => e.category).filter(Boolean)))],
-    [emails]
-  );
-
-  const filtered = emails.filter((e) => {
-    const catOk = categoryFilter === "ALL" || e.category === categoryFilter;
-    const priOk = priorityFilter === "ALL" || e.priority === priorityFilter;
-    return catOk && priOk;
-  });
-/////////////////
-  useEffect(() => {
-  setPage(1);
-}, [categoryFilter, priorityFilter]);
-
-const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-const currentPage = Math.min(page, totalPages);
-const paged = filtered.slice(
-  (currentPage - 1) * PAGE_SIZE,
-  currentPage * PAGE_SIZE
-);
 
   if (loading) return <p className="muted">Loading inbox...</p>;
 
@@ -79,12 +94,15 @@ const paged = filtered.slice(
     <div>
       <h1 className="page-title">Inbox</h1>
       <p className="muted">
-  {filtered.length} conversations
-  {filtered.length > 0 &&
-    ` · page ${currentPage} of ${totalPages}`}
-</p>
+        {totalElements} conversations
+        {totalPages > 0 && ` · page ${page + 1} of ${totalPages}`}
+      </p>
 
-      {error && <p className="error" style={{ marginTop: 12 }}>{error}</p>}
+      {error && (
+        <p className="error" style={{ marginTop: 12 }}>
+          {error}
+        </p>
+      )}
 
       <div className="toolbar">
         <select
@@ -92,12 +110,13 @@ const paged = filtered.slice(
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
         >
-          {categories.map((c) => (
+          {CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
           ))}
         </select>
+
         <select
           className="select"
           value={priorityFilter}
@@ -108,70 +127,85 @@ const paged = filtered.slice(
           <option value="MEDIUM">MEDIUM</option>
           <option value="LOW">LOW</option>
         </select>
+
         {gmailConnected ? (
           <span className="muted">Gmail · {gmailEmail}</span>
         ) : (
-          <button className="btn btn-gold" disabled={gmailBusy} onClick={connectGmail}>
+          <button
+            className="btn btn-gold"
+            disabled={gmailBusy}
+            onClick={connectGmail}
+          >
             {gmailBusy ? "Opening Google..." : "Connect Gmail"}
           </button>
         )}
       </div>
 
-      {filtered.length === 0 ? (
+      {emails.length === 0 ? (
         <div className="card card-pad">
-          <p className="muted">No emails found. Connect Gmail and fetch unread mail, or process a message from the detail flow.</p>
+          <p className="muted">
+            No emails found. Connect Gmail and fetch unread mail, or process a
+            message from the detail flow.
+          </p>
         </div>
       ) : (
         <div className="card">
-          {paged.map((email) => {
+          {emails.map((email) => {
             const status = statusLabel(email);
             return (
-              <Link key={email.id} to={`/emails/${email.id}`} className="email-row">
+              <Link
+                key={email.id}
+                to={`/emails/${email.id}`}
+                className="email-row"
+              >
                 <div>
                   <div className="subject">{email.subject}</div>
                   <div className="summary">{email.summary}</div>
                 </div>
                 <div className="muted">{email.senderEmail}</div>
                 <span className="badge badge-pending">{email.category}</span>
-                <span className={`badge badge-${(email.priority || "low").toLowerCase()}`}>
+                <span
+                  className={`badge badge-${(email.priority || "low").toLowerCase()}`}
+                >
                   {email.priority}
                 </span>
-                <span className={`badge badge-${status.toLowerCase()}`}>{status}</span>
+                <span className={`badge badge-${status.toLowerCase()}`}>
+                  {status}
+                </span>
                 <div className="muted">
-                  {email.processedAt ? new Date(email.processedAt).toLocaleString() : "—"}
+                  {email.processedAt
+                    ? new Date(email.processedAt).toLocaleString()
+                    : "—"}
                 </div>
               </Link>
             );
           })}
         </div>
       )}
-      {filtered.length > PAGE_SIZE && (
-  <div className="pager">
-    <button
-      className="btn btn-ghost"
-      disabled={currentPage === 1}
-      onClick={() => setPage(currentPage - 1)}
-    >
-      Previous
-    </button>
-    {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-      <button
-        key={n}
-        className={"btn" + (n === currentPage ? " btn-gold" : " btn-ghost")}
-        onClick={() => setPage(n)}
-      >
-        {n}
-      </button>
-    ))}
-    <button
-      className="btn btn-ghost"
-      disabled={currentPage === totalPages}
-      onClick={() => setPage(currentPage + 1)}
-    >
-      Next
-    </button>
-  </div>
-)}
+
+      {totalPages > 1 && (
+        <div className="pager">
+          <button
+            className="btn btn-ghost"
+            disabled={page === 0}
+            onClick={() => setPage(page - 1)}
+          >
+            Previous
+          </button>
+
+          <span className="muted" style={{ alignSelf: "center" }}>
+            Page {page + 1} of {totalPages}
+          </span>
+
+          <button
+            className="btn btn-ghost"
+            disabled={page + 1 >= totalPages}
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

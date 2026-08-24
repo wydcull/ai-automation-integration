@@ -3,6 +3,7 @@ package com.firstaiAutomationSystem.project.service;
 import com.firstaiAutomationSystem.project.exception.AiServiceException;
 import com.firstaiAutomationSystem.project.exception.DocumentProcessingException;
 import com.firstaiAutomationSystem.project.model.*;
+import com.firstaiAutomationSystem.project.model.dto.EmailTriageListItem;
 import com.firstaiAutomationSystem.project.repository.EmailTriageRepository;
 import com.firstaiAutomationSystem.project.util.InputSanitizer;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,9 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @Service
 public class EmailTriageService {
@@ -106,11 +110,38 @@ public class EmailTriageService {
     }
 
     @Transactional(readOnly = true)
-    public List<EmailTriageResponse> findAll() {
-        return repository.findAll()
-                .stream()
-                .map(this::toResponse)
-                .toList();
+    public Page<EmailTriageListItem> search(String category, String priority, Pageable pageable) {
+        Pageable safePageable = pageable;
+        if (pageable.getPageSize() > 50) {
+            safePageable = PageRequest.of(pageable.getPageNumber(), 50, pageable.getSort());
+        }
+
+        String cat = blankToNull(category);
+        String pri = blankToNull(priority);
+
+        return repository.search(cat, pri, safePageable)
+                .map(this::toListItem);
+    }
+
+    private EmailTriageListItem toListItem(EmailTriageRecord record) {
+        return new EmailTriageListItem(
+                record.getId(),
+                record.getSenderEmail(),
+                record.getSubject(),
+                record.getCategory(),
+                record.getPriority(),
+                record.getSummary(),
+                record.getProcessedAt(),
+                record.getApproved(),
+                record.getRejected(),
+                record.getReplySent()
+        );
+    }
+
+    private String blankToNull(String value) {
+        return (value == null || value.isBlank() || "ALL".equalsIgnoreCase(value))
+                ? null
+                : value;
     }
 
     @Transactional(readOnly = true)
