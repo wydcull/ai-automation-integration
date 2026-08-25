@@ -36,12 +36,12 @@ export type EmailTriage = {
 
 export type EmailTriagePage = {
   content: EmailTriageListItem[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-  size: number;
-  first: boolean;
-  last: boolean;
+  page: {
+    size: number;
+    number: number;
+    totalElements: number;
+    totalPages: number;
+  };
 };
 
 export function getEmails(params: {

@@ -9,7 +9,7 @@ import static org.springframework.data.web.config.EnableSpringDataWebSupport.Pag
 
 @SpringBootApplication
 @EnableScheduling  // Add this annotation
-@EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO)
+@EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO)  //on a @Configuration class (or on the main application class). Responses become a stable PagedModel DTO shape.
 public class ProjectApplication {
 
 	public static void main(String[] args) {

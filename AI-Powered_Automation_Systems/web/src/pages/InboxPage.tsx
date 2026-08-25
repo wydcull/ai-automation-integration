@@ -50,11 +50,11 @@ export default function InboxPage() {
       category: categoryFilter,
       priority: priorityFilter,
     })
-      .then((data) => {
-        setEmails(data.content);
-        setTotalPages(data.totalPages);
-        setTotalElements(data.totalElements);
-      })
+     .then((data) => {
+  setEmails(data.content ?? []);
+  setTotalPages(data.page?.totalPages ?? 0);
+  setTotalElements(data.page?.totalElements ?? 0);
+})
       .catch((err) =>
         setError(err instanceof Error ? err.message : "Failed to load")
       )
@@ -62,9 +62,9 @@ export default function InboxPage() {
   }, [page, categoryFilter, priorityFilter]);
 
   // Reset to first page when filters change
-  // useEffect(() => {
-  //   setPage(0);
-  // }, [categoryFilter, priorityFilter]);
+  useEffect(() => {
+    setPage(0);
+  }, [categoryFilter, priorityFilter]);
 
   useEffect(() => {
     getGmailStatus()
