@@ -3,13 +3,13 @@ package com.rag.AIrag.service;
 import com.google.common.util.concurrent.RateLimiter;
 import com.rag.AIrag.dto.groq.GroqRequest;
 import com.rag.AIrag.dto.groq.GroqResponse;
+import com.rag.AIrag.exception.AIServiceException;
+import com.rag.AIrag.exception.RateLimitExceededException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-
 
 import java.util.List;
 
@@ -18,15 +18,12 @@ import java.util.List;
 public class GroqService {
 
     private final WebClient webClient;
-    private final String apiKey;
     private final String model;
     private final double temperature;
     private final int maxTokens;
 
-    // Rate limiter: 30 requests per minute for Groq
     private final RateLimiter rateLimiter = RateLimiter.create(30.0 / 60.0);
 
-    // Retry configuration
     private static final int MAX_RETRY_ATTEMPTS = 3;
     private static final long INITIAL_RETRY_DELAY_MS = 1000;
 
@@ -37,7 +34,6 @@ public class GroqService {
             @Value("${groq.api.temperature}") double temperature,
             @Value("${groq.api.max-tokens}") int maxTokens) {
 
-        this.apiKey = apiKey;
         this.model = model;
         this.temperature = temperature;
         this.maxTokens = maxTokens;
@@ -48,49 +44,26 @@ public class GroqService {
                 .defaultHeader("Content-Type", "application/json")
                 .build();
 
-        log.info("GroqService initialized with model: {} and rate limit: 30 RPM", model);
+        log.info("GroqService initialized with model: {}", model);
     }
 
-//    @Cacheable(value = "groqResponses", key = "#prompt")
+    // Simple single-prompt call
     public String generateContent(String prompt) {
-        log.debug("Sending request to Groq API with model: {}", model);
-
-        // Apply rate limiting
         rateLimiter.acquire();
-        log.debug("Rate limiter acquired, proceeding with request");
-
-        // Retry logic with exponential backoff
-        return executeWithRetry(prompt, 0);
-    }
-
-    public String generateContentWithMessages(List<GroqRequest.Message> messages) {
-        log.debug("Sending messages request to Groq API with model: {}", model);
-
-        // Apply rate limiting
-        rateLimiter.acquire();
-        log.debug("Rate limiter acquired, proceeding with request");
-
-        // Retry logic with exponential backoff
-        return executeWithRetryMessages(messages, 0);
-    }
-
-    private String executeWithRetry(String prompt, int attemptNumber) {
         GroqRequest.Message message = new GroqRequest.Message("user", prompt);
-        return executeWithRetryMessages(List.of(message), attemptNumber);
+        return executeWithRetryMessages(List.of(message), 0);
+    }
+
+    // RAG uses this — system prompt + user question
+    public String generateContentWithMessages(List<GroqRequest.Message> messages) {
+        rateLimiter.acquire();
+        return executeWithRetryMessages(messages, 0);
     }
 
     private String executeWithRetryMessages(List<GroqRequest.Message> messages, int attemptNumber) {
         try {
-            GroqRequest request = buildRequest(messages);
-
-            // Add this logging
-            log.debug("Request being sent to Groq:");
-            log.debug("Model: {}", request.getModel());
-            log.debug("Temperature: {}", request.getTemperature());
-            log.debug("Max tokens: {}", request.getMax_tokens());
-            log.debug("Number of messages: {}", request.getMessages().size());
-            messages.forEach(msg -> log.debug("  - {}: {}", msg.getRole(),
-                    msg.getContent().length() > 100 ? msg.getContent().substring(0, 100) + "..." : msg.getContent()));
+            GroqRequest request = new GroqRequest(
+                    model, messages, temperature, maxTokens, "parsed", "none");
 
             GroqResponse response = webClient.post()
                     .uri("/chat/completions")
@@ -100,56 +73,34 @@ public class GroqService {
                     .block();
 
             if (response != null) {
-                log.debug("Full Groq Response: {}", response);  // Add this line
-                log.debug("Choices: {}", response.getChoices());  // Add this line
-
-                String generatedText = response.getGeneratedText();
-                log.debug("Received response from Groq: {}", generatedText);
-
-                // Check finish_reason
-                if (response.getChoices() != null && !response.getChoices().isEmpty()) {
-                    String finishReason = response.getChoices().get(0).getFinish_reason();
-                    log.debug("Finish reason: {}", finishReason);  // Add this line
-                }
-
-                // Log token usage if available
-                if (response.getUsage() != null) {
-                    log.debug("Token usage - Prompt: {}, Completion: {}, Total: {}",
-                            response.getUsage().getPrompt_tokens(),
-                            response.getUsage().getCompletion_tokens(),
-                            response.getUsage().getTotal_tokens());
-                }
-
-                return generatedText;
+                String text = response.getGeneratedText();
+                log.debug("Groq response: {}", text);
+                return text;
             }
 
             return "Sorry, I couldn't generate a response.";
 
         } catch (WebClientResponseException.TooManyRequests e) {
-            log.warn("Rate limit exceeded (429), attempt {}/{}", attemptNumber + 1, MAX_RETRY_ATTEMPTS);
-            return handleRateLimitError(messages, attemptNumber, e);
+            return handleRateLimitError(messages, attemptNumber);
 
         } catch (WebClientResponseException e) {
-            log.error("HTTP error calling Groq API: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new RuntimeException("Failed to call Groq API: " + e.getResponseBodyAsString(), e);
+            log.error("Groq API error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new AIServiceException("Failed to call Groq API: " + e.getResponseBodyAsString(), e);
 
         } catch (Exception e) {
-            log.error("Error calling Groq API: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to call Groq API: " + e.getMessage(), e);
+            log.error("Groq API error: {}", e.getMessage(), e);
+            throw new AIServiceException("Failed to call Groq API: " + e.getMessage(), e);
         }
     }
 
-    private String handleRateLimitError(List<GroqRequest.Message> messages, int attemptNumber, Exception originalException) {
+    private String handleRateLimitError(List<GroqRequest.Message> messages, int attemptNumber) {
         if (attemptNumber >= MAX_RETRY_ATTEMPTS - 1) {
-            log.error("Max retry attempts reached. Giving up.");
             throw new RateLimitExceededException(
-                    "AI service rate limit exceeded. Please try again in a moment."
-            );
+                    "AI service rate limit exceeded. Please try again in a moment.");
         }
 
-        // Exponential backoff
         long delayMs = INITIAL_RETRY_DELAY_MS * (long) Math.pow(2, attemptNumber);
-        log.info("Retrying in {} ms...", delayMs);
+        log.info("Rate limited. Retrying in {} ms...", delayMs);
 
         try {
             Thread.sleep(delayMs);
@@ -159,9 +110,5 @@ public class GroqService {
         }
 
         return executeWithRetryMessages(messages, attemptNumber + 1);
-    }
-
-    private GroqRequest buildRequest(List<GroqRequest.Message> messages) {
-        return new GroqRequest(model, messages, temperature, maxTokens, "parsed", "none");
     }
 }

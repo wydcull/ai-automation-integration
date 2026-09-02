@@ -45,11 +45,11 @@ public class EmbeddingService {
         return response.getData().get(0).getEmbedding(); // List<Double> → float[]
     }
 
-    public String toPgVectorString(float[] vector) {
+    public String toPgVectorString(List<Double> vector) {
         StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < vector.length; i++) {
+        for (int i = 0; i < vector.size(); i++) {
             if (i > 0) sb.append(",");
-            sb.append(vector[i]);
+            sb.append(vector.get(i));
         }
         sb.append("]");
         return sb.toString();
