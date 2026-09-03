@@ -19,7 +19,7 @@ public class DocumentChunkEntity {
     private int chunkIndex;
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
-    @Column(columnDefinition = "vector(1536)")
+    @Column(columnDefinition = "vector(768)")
     private String embedding;  // stored as "[0.1,0.2,...]"
     private Instant createdAt;
 }

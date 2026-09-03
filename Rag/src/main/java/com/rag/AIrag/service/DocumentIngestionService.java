@@ -48,15 +48,13 @@ public class DocumentIngestionService {
             }
 
             List<String> chunks = textChunker.chunk(text);
-            if (chunks.isEmpty()) {
-                throw new IllegalArgumentException("No chunks created from document text");
-            }
-
             log.info("Created {} chunks for document: {}", chunks.size(), doc.getFilename());
 
+// Batch embed all chunks at once (fewer API calls)
+            List<List<Double>> embeddings = embeddingService.embedBatch(chunks);
+
             for (int i = 0; i < chunks.size(); i++) {
-                List<Double> vector = embeddingService.embed(chunks.get(i));
-                String pgVector = embeddingService.toPgVectorString(vector);
+                String pgVector = embeddingService.toPgVectorString(embeddings.get(i));
 
                 DocumentChunkEntity chunk = DocumentChunkEntity.builder()
                         .documentId(doc.getId())
