@@ -1,6 +1,7 @@
 package com.rag.AIrag.service;
 
 import com.rag.AIrag.dto.EmbeddingResponse;
+import com.rag.AIrag.dto.OllamaEmbeddingResponse;
 import com.rag.AIrag.exception.AIServiceException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,89 +25,122 @@ public class EmbeddingService {
     private static final int BATCH_SIZE = 20;  // embed 20 chunks per API call
 
     public EmbeddingService(
-            @Value("${openai.api.base-url}") String baseUrl,
-            @Value("${openai.api.key}") String apiKey,
+            @Value("${embedding.base-url}") String baseUrl,
             @Value("${embedding.model}") String model) {
-
         this.model = model;
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
-                .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("Content-Type", "application/json")
                 .build();
     }
 
-    // Single text embed (used for questions at query time)
-    public List<Double> embed(String text) {
-        return embedBatch(List.of(text)).get(0);
-    }
+//    public EmbeddingService(
+//            @Value("${openai.api.base-url}") String baseUrl,
+//            @Value("${openai.api.key}") String apiKey,
+//            @Value("${embedding.model}") String model) {
+//
+//        this.model = model;
+//        this.webClient = WebClient.builder()
+//                .baseUrl(baseUrl)
+//                .defaultHeader("Authorization", "Bearer " + apiKey)
+//                .defaultHeader("Content-Type", "application/json")
+//                .build();
+//    }
 
-    // Batch embed — multiple chunks in one API call
+//    // Single text embed (used for questions at query time)
+//    public List<Double> embed(String text) {
+//        return embedBatch(List.of(text)).get(0);
+//    }
+//
+//    // Batch embed — multiple chunks in one API call
+//    public List<List<Double>> embedBatch(List<String> texts) {
+//        List<List<Double>> allEmbeddings = new ArrayList<>();
+//
+//        for (int i = 0; i < texts.size(); i += BATCH_SIZE) {
+//            int end = Math.min(i + BATCH_SIZE, texts.size());
+//            List<String> batch = texts.subList(i, end);
+//
+//            log.debug("Embedding batch {}-{} of {}", i, end, texts.size());
+//            EmbeddingResponse response = callWithRetry(batch);
+//
+//            for (EmbeddingResponse.Item item : response.getData()) {
+//                allEmbeddings.add(item.getEmbedding());
+//            }
+//
+//            // small pause between batches to avoid rate limit
+//            if (end < texts.size()) {
+//                sleep(500);
+//            }
+//        }
+//
+//        return allEmbeddings;
+//    }
+//
+//    private EmbeddingResponse callWithRetry(List<String> texts) {
+//        for (int attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+//            try {
+//                Map<String, Object> body = Map.of(
+//                        "model", model,
+//                        "input", texts
+//                );
+//
+//                EmbeddingResponse response = webClient.post()
+//                        .uri("/embeddings")
+//                        .bodyValue(body)
+//                        .retrieve()
+//                        .bodyToMono(EmbeddingResponse.class)
+//                        .block();
+//
+//                return response;
+//
+//            } catch (WebClientResponseException.TooManyRequests e) {
+//                long delay = INITIAL_RETRY_DELAY_MS * (long) Math.pow(2, attempt);
+//                log.warn("OpenAI rate limit (429). Retry {}/{} in {} ms",
+//                        attempt + 1, MAX_RETRY_ATTEMPTS, delay);
+//                sleep(delay);
+//
+//            } catch (WebClientResponseException e) {
+//                throw new AIServiceException(
+//                        "OpenAI embedding failed: " + e.getResponseBodyAsString(), e);
+//            }
+//        }
+//
+//        throw new AIServiceException(
+//                "OpenAI rate limit exceeded after " + MAX_RETRY_ATTEMPTS + " retries");
+//    }
+//
+//    private void sleep(long ms) {
+//        try {
+//            Thread.sleep(ms);
+//        } catch (InterruptedException e) {
+//            Thread.currentThread().interrupt();
+//            throw new AIServiceException("Embedding retry interrupted", e);
+//        }
+//    }
+public List<Double> embed(String text) {
+    return embedBatch(List.of(text)).get(0);
+}
     public List<List<Double>> embedBatch(List<String> texts) {
-        List<List<Double>> allEmbeddings = new ArrayList<>();
-
+        List<List<Double>> all = new ArrayList<>();
         for (int i = 0; i < texts.size(); i += BATCH_SIZE) {
-            int end = Math.min(i + BATCH_SIZE, texts.size());
-            List<String> batch = texts.subList(i, end);
-
-            log.debug("Embedding batch {}-{} of {}", i, end, texts.size());
-            EmbeddingResponse response = callWithRetry(batch);
-
-            for (EmbeddingResponse.Item item : response.getData()) {
-                allEmbeddings.add(item.getEmbedding());
+            List<String> batch = texts.subList(i, Math.min(i + BATCH_SIZE, texts.size()));
+            Map<String, Object> body = Map.of(
+                    "model", model,
+                    "input", batch
+            );
+            OllamaEmbeddingResponse response = webClient.post()
+                    .uri("/api/embed")
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(OllamaEmbeddingResponse.class)
+                    .block();
+            if (response == null || response.getEmbeddings() == null) {
+                throw new AIServiceException("Empty response from Ollama");
             }
-
-            // small pause between batches to avoid rate limit
-            if (end < texts.size()) {
-                sleep(500);
-            }
+            all.addAll(response.getEmbeddings());
         }
-
-        return allEmbeddings;
+        return all;
     }
-
-    private EmbeddingResponse callWithRetry(List<String> texts) {
-        for (int attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
-            try {
-                Map<String, Object> body = Map.of(
-                        "model", model,
-                        "input", texts
-                );
-
-                EmbeddingResponse response = webClient.post()
-                        .uri("/embeddings")
-                        .bodyValue(body)
-                        .retrieve()
-                        .bodyToMono(EmbeddingResponse.class)
-                        .block();
-
-                return response;
-
-            } catch (WebClientResponseException.TooManyRequests e) {
-                long delay = INITIAL_RETRY_DELAY_MS * (long) Math.pow(2, attempt);
-                log.warn("OpenAI rate limit (429). Retry {}/{} in {} ms",
-                        attempt + 1, MAX_RETRY_ATTEMPTS, delay);
-                sleep(delay);
-
-            } catch (WebClientResponseException e) {
-                throw new AIServiceException(
-                        "OpenAI embedding failed: " + e.getResponseBodyAsString(), e);
-            }
-        }
-
-        throw new AIServiceException(
-                "OpenAI rate limit exceeded after " + MAX_RETRY_ATTEMPTS + " retries");
-    }
-
-    private void sleep(long ms) {
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new AIServiceException("Embedding retry interrupted", e);
-        }
-    }
-
     public String toPgVectorString(List<Double> vector) {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < vector.size(); i++) {
