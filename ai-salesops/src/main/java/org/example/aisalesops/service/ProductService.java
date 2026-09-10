@@ -12,29 +12,24 @@ public class ProductService {
 
     private final ProductRepository productRepository;
 
-
     public ProductService(ProductRepository productRepository) {
         this.productRepository = productRepository;
     }
-
 
     // Create Product
     public Product createProduct(Product product) {
         return productRepository.save(product);
     }
 
-
     // Get All Products
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
 
-
     // Get Product By ID
     public Optional<Product> getProductById(Long id) {
         return productRepository.findById(id);
     }
-
 
     // Full Update - PUT
     public Product updateProduct(Long id, Product updatedProduct) {
@@ -54,7 +49,6 @@ public class ProductService {
         return productRepository.save(existingProduct);
     }
 
-
     // Partial Update - PATCH
     public Product partialUpdateProduct(
             Long id,
@@ -68,30 +62,24 @@ public class ProductService {
                         )
                 );
 
-
         if (updatedProduct.getName() != null) {
             existingProduct.setName(updatedProduct.getName());
         }
-
 
         if (updatedProduct.getModel() != null) {
             existingProduct.setModel(updatedProduct.getModel());
         }
 
-
         if (updatedProduct.getCategory() != null) {
             existingProduct.setCategory(updatedProduct.getCategory());
         }
-
 
         if (updatedProduct.getActive() != null) {
             existingProduct.setActive(updatedProduct.getActive());
         }
 
-
         return productRepository.save(existingProduct);
     }
-
 
     // Delete Product
     public void deleteProduct(Long id) {
@@ -104,5 +92,15 @@ public class ProductService {
                 );
 
         productRepository.delete(existingProduct);
+    }
+
+    // Count Products
+    public long countProducts(Boolean active) {
+
+        if (active == null) {
+            return productRepository.count();
+        }
+
+        return productRepository.countByActive(active);
     }
 }
