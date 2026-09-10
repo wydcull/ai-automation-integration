@@ -1,7 +1,6 @@
 package com.rag.AIrag.service;
 
 import com.rag.AIrag.dto.IngestResponse;
-import com.rag.AIrag.model.DocumentChunkEntity;
 import com.rag.AIrag.model.DocumentEntity;
 import com.rag.AIrag.model.DocumentStatus;
 import com.rag.AIrag.repository.DocumentChunkRepository;
@@ -14,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -48,23 +48,26 @@ public class DocumentIngestionService {
             }
 
             List<String> chunks = textChunker.chunk(text);
+            // Prefer sentence-level chunks for short docs
+            if (chunks.size() == 1 && text.length() < 500) {
+                chunks = List.of(text.split("(?<=[.!?])\\s+"));
+                chunks = chunks.stream().map(String::trim).filter(s -> !s.isBlank()).toList();
+            }
             log.info("Created {} chunks for document: {}", chunks.size(), doc.getFilename());
 
-// Batch embed all chunks at once (fewer API calls)
             List<List<Double>> embeddings = embeddingService.embedBatch(chunks);
 
             for (int i = 0; i < chunks.size(); i++) {
                 String pgVector = embeddingService.toPgVectorString(embeddings.get(i));
 
-                DocumentChunkEntity chunk = DocumentChunkEntity.builder()
-                        .documentId(doc.getId())
-                        .chunkIndex(i)
-                        .content(chunks.get(i))
-                        .embedding(pgVector)
-                        .createdAt(Instant.now())
-                        .build();
-
-                chunkRepository.save(chunk);
+                chunkRepository.insertChunk(
+                        UUID.randomUUID().toString(),
+                        doc.getId().toString(),
+                        i,
+                        chunks.get(i),
+                        pgVector,
+                        Instant.now()
+                );
             }
 
             doc.setStatus(DocumentStatus.INDEXED);
