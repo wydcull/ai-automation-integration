@@ -1,6 +1,7 @@
 package org.example.aisalesops.service;
 
 import org.example.aisalesops.dto.DashboardSummaryResponse;
+import org.example.aisalesops.dto.EmailStatsResponse;
 import org.example.aisalesops.dto.UserSummaryResponse;
 import org.example.aisalesops.repository.DashboardEmailRepository;
 import org.example.aisalesops.repository.DashboardLeadRepository;
@@ -78,6 +79,29 @@ public class DashboardServiceImpl implements DashboardService {
                 processedEmails,
                 aiFailed,
                 pendingReview
+        );
+    }
+
+    @Override
+    public EmailStatsResponse getEmailStats() {
+
+        long received =
+                dashboardEmailRepository.countReceivedEmails();
+
+        long processing =
+                dashboardEmailRepository.countProcessingEmails();
+
+        long processed =
+                dashboardEmailRepository.countProcessedEmails();
+
+        long failed =
+                dashboardEmailRepository.countFailedEmails();
+
+        return new EmailStatsResponse(
+                received,
+                processing,
+                processed,
+                failed
         );
     }
 }

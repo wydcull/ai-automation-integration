@@ -1,6 +1,7 @@
 package org.example.aisalesops.controller;
 
 import org.example.aisalesops.dto.DashboardSummaryResponse;
+import org.example.aisalesops.dto.EmailStatsResponse;
 import org.example.aisalesops.dto.UserSummaryResponse;
 import org.example.aisalesops.service.DashboardService;
 import org.springframework.http.ResponseEntity;
@@ -18,21 +19,24 @@ public class DashboardController {
         this.dashboardService = dashboardService;
     }
 
-
     @GetMapping("/users-summary")
     public ResponseEntity<UserSummaryResponse> getUserSummary() {
-
         return ResponseEntity.ok(
                 dashboardService.getUserSummary()
         );
     }
 
-
     @GetMapping("/summary")
     public ResponseEntity<DashboardSummaryResponse> getDashboardSummary() {
-
         return ResponseEntity.ok(
                 dashboardService.getDashboardSummary()
+        );
+    }
+
+    @GetMapping("/email-stats")
+    public ResponseEntity<EmailStatsResponse> getEmailStats() {
+        return ResponseEntity.ok(
+                dashboardService.getEmailStats()
         );
     }
 }
