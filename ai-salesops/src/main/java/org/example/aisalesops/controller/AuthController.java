@@ -25,7 +25,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
 
-        if (isBlank(request.getUsername())
+        if (isBlank(request.getEmail())
                 || isBlank(request.getPassword())
                 || isBlank(request.getRole())) {
             return ResponseEntity.badRequest()
@@ -33,7 +33,7 @@ public class AuthController {
         }
 
         // username = email for now
-        User user = userRepository.findByEmail(request.getUsername())
+        User user = userRepository.findByEmail(request.getEmail())
                 .orElse(null);
 
         if (user == null || !Boolean.TRUE.equals(user.getActive())) {
@@ -57,7 +57,7 @@ public class AuthController {
 
         LoginResponse res = new LoginResponse();
         res.setUserId(user.getId());
-        res.setUsername(user.getEmail());
+        res.setEmail(user.getEmail());
         res.setFullName(user.getFullName());
         res.setRole(dbRole);
         res.setMessage("Login successful");
