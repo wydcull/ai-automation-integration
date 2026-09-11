@@ -63,7 +63,7 @@ public class GroqService {
     private String executeWithRetryMessages(List<GroqRequest.Message> messages, int attemptNumber) {
         try {
             GroqRequest request = new GroqRequest(
-                    model, messages, temperature, maxTokens, "parsed", "none");
+                    model, messages, temperature, maxTokens, "parsed", "low");
 
             GroqResponse response = webClient.post()
                     .uri("/chat/completions")
