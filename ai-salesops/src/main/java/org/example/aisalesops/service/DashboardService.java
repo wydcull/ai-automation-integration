@@ -1,8 +1,8 @@
 package org.example.aisalesops.service;
 
-import org.example.aisalesops.dto.DashboardSummaryResponse;
-import org.example.aisalesops.dto.EmailStatsResponse;
-import org.example.aisalesops.dto.UserSummaryResponse;
+import org.example.aisalesops.dto.*;
+
+import java.util.List;
 
 public interface DashboardService {
 
@@ -11,4 +11,14 @@ public interface DashboardService {
     DashboardSummaryResponse getDashboardSummary();
 
     EmailStatsResponse getEmailStats();
+
+    List<StatusCountResponse> getLeadsByStatus();
+
+    List<ScoreBandCountResponse> getLeadsByScore();
+
+    List<HotLeadResponse> getRecentHotLeads(int limit);
+
+    List<AssigneeLeadStatsResponse> getLeadsByAssignee();
+
+    List<SlaBreachResponse> getSlaBreaches();
 }
