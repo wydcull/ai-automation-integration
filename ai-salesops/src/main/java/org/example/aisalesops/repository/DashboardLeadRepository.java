@@ -53,4 +53,46 @@ public interface DashboardLeadRepository extends JpaRepository<Lead, Long> {
         ORDER BY COUNT(l) DESC
     """)
     List<Object[]> countLeadsByAssignee();
+
+    @Query("""
+    SELECT COUNT(l) FROM Lead l
+    WHERE l.status = 'NEW'
+      AND (:assignedUserId IS NULL OR l.assignedUser.id = :assignedUserId)
+""")
+    long countNewLeads(@Param("assignedUserId") Long assignedUserId);
+
+    @Query("""
+    SELECT COUNT(l) FROM Lead l
+    WHERE l.scoreBand = 'HOT'
+      AND (:assignedUserId IS NULL OR l.assignedUser.id = :assignedUserId)
+""")
+    long countHotLeads(@Param("assignedUserId") Long assignedUserId);
+
+    @Query("""
+    SELECT COUNT(l) FROM Lead l
+    WHERE l.status = 'QUALIFIED'
+      AND (:assignedUserId IS NULL OR l.assignedUser.id = :assignedUserId)
+""")
+    long countQualifiedLeads(@Param("assignedUserId") Long assignedUserId);
+
+    @Query("""
+    SELECT COUNT(l) FROM Lead l
+    WHERE (:assignedUserId IS NULL OR l.assignedUser.id = :assignedUserId)
+""")
+    long countLeads(@Param("assignedUserId") Long assignedUserId);
+
+    @Query("""
+    SELECT COUNT(l) FROM Lead l
+    WHERE l.assignedUser IS NULL
+""")
+    long countUnassignedLeads();
+
+    @Query("""
+    SELECT COALESCE(l.source, 'UNKNOWN'), COUNT(l)
+    FROM Lead l
+    WHERE (:assignedUserId IS NULL OR l.assignedUser.id = :assignedUserId)
+    GROUP BY l.source
+    ORDER BY COUNT(l) DESC
+""")
+    List<Object[]> countLeadsBySource(@Param("assignedUserId") Long assignedUserId);
 }

@@ -21,4 +21,12 @@ public interface DashboardService {
     List<AssigneeLeadStatsResponse> getLeadsByAssignee();
 
     List<SlaBreachResponse> getSlaBreaches();
+
+    SalesSummaryResponse getSalesSummary(Long assignedUserId);
+
+    List<SourceCountResponse> getLeadsBySource(Long assignedUserId);
+
+    List<DashboardTaskResponse> getOpenTasks(Long assignedUserId, boolean overdueOnly);
+
+    List<PendingReviewResponse> getPendingReview();
 }

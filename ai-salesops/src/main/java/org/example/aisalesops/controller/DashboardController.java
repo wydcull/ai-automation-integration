@@ -61,4 +61,31 @@ public class DashboardController {
     public ResponseEntity<List<SlaBreachResponse>> getSlaBreaches() {
         return ResponseEntity.ok(dashboardService.getSlaBreaches());
     }
+
+    @GetMapping("/sales-summary")
+    public ResponseEntity<SalesSummaryResponse> getSalesSummary(
+            @RequestParam(required = false) Long assignedUserId
+    ) {
+        return ResponseEntity.ok(dashboardService.getSalesSummary(assignedUserId));
+    }
+
+    @GetMapping("/leads-by-source")
+    public ResponseEntity<List<SourceCountResponse>> getLeadsBySource(
+            @RequestParam(required = false) Long assignedUserId
+    ) {
+        return ResponseEntity.ok(dashboardService.getLeadsBySource(assignedUserId));
+    }
+
+    @GetMapping("/open-tasks")
+    public ResponseEntity<List<DashboardTaskResponse>> getOpenTasks(
+            @RequestParam(required = false) Long assignedUserId,
+            @RequestParam(defaultValue = "false") boolean overdue
+    ) {
+        return ResponseEntity.ok(dashboardService.getOpenTasks(assignedUserId, overdue));
+    }
+
+    @GetMapping("/pending-review")
+    public ResponseEntity<List<PendingReviewResponse>> getPendingReview() {
+        return ResponseEntity.ok(dashboardService.getPendingReview());
+    }
 }
